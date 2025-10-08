@@ -5,7 +5,7 @@ Requirements:
 - Install dependencies: pip install -r requirements.txt
 
 Run:
-- python file_server.py --host 0.0.0.0 --port 8000
+- python file_server.py --host 0.0.0.0 --port 1966
 - Optional TLS: --ssl-cert /path/cert.pem --ssl-key /path/key.pem
 
 Features (prototype):
