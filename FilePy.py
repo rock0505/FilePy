@@ -1,625 +1,869 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-轻量级单文件文件服务器原型
-特性：
-- 单文件运行，后端使用 FastAPI，数据库使用 sqlite
-- 用户/组/权限（ACL）、审计日志、配额、去重、压缩（可选）
-- 简单 Web UI（内嵌模板）、监控/metrics、健康检查
-说明：这是个原型，许多企业级功能（如真正的静态磁盘加密、复杂的分布式存储、多后端云存储驱动、深度权限继承策略等）需要在生产环境中用专门组件补充。
-运行依赖见 requirements.txt
+FilePy - 轻量级文件服务器
+使用Python + FastAPI + SQLite实现
 """
 
 import os
-import io
+import sys
 import sqlite3
 import hashlib
-import uuid
-import gzip
 import json
-import time
-import asyncio
-import traceback
-import urllib.parse
-import unicodedata
-
-# Python 3.8 compatibility: asyncio.to_thread was added in 3.9
-async def _run_in_thread(func, *args, **kwargs):
-    try:
-        # prefer asyncio.to_thread when available
-        return await asyncio.to_thread(func, *args, **kwargs)
-    except AttributeError:
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
+import argparse
+import logging
 from datetime import datetime
 from typing import Optional, List, Dict
-from fastapi import FastAPI, Request, HTTPException, UploadFile, File, Form, Depends
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, Form
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pydantic import BaseModel
-import aiofiles
+import uvicorn
 
-# 配置
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STORAGE_DIR = os.environ.get('FS_STORAGE_DIR', os.path.join(BASE_DIR, 'storage'))
-DB_PATH = os.environ.get('FS_DB_PATH', os.path.join(BASE_DIR, 'fs.db'))
-ADMIN_USERNAME = os.environ.get('FS_ADMIN_USER', 'admin')
-ADMIN_PASSWORD = os.environ.get('FS_ADMIN_PASS', 'admin')  # 启动后请尽快更改
-ENABLE_COMPRESSION = os.environ.get('FS_ENABLE_COMPRESSION', '1') == '1'
-DEFAULT_USER_QUOTA = int(os.environ.get('FS_DEFAULT_QUOTA_BYTES', str(10 * 1024 * 1024 * 1024)))  # 10GB
-FS_DEBUG = os.environ.get('FS_DEBUG', '0') == '1'
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-os.makedirs(STORAGE_DIR, exist_ok=True)
-os.makedirs(os.path.join(STORAGE_DIR, 'blobs'), exist_ok=True)
+# 数据库初始化
+def init_database():
+    """初始化数据库表结构"""
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
 
-app = FastAPI(title='Lightweight File Server')
-
-# --- 轻量 DB 层 ---
-
-def get_conn():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db():
-    conn = get_conn()
-    c = conn.cursor()
-    c.executescript('''
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY,
-        username TEXT UNIQUE,
-        password_hash TEXT,
-        created_at INTEGER,
-        quota_bytes INTEGER
-    );
-    CREATE TABLE IF NOT EXISTS groups (
-        id INTEGER PRIMARY KEY,
-        name TEXT UNIQUE
-    );
-    CREATE TABLE IF NOT EXISTS user_groups (
-        user_id INTEGER,
-        group_id INTEGER
-    );
-    CREATE TABLE IF NOT EXISTS blobs (
-        id INTEGER PRIMARY KEY,
-        sha256 TEXT UNIQUE,
-        size INTEGER,
-        compressed INTEGER DEFAULT 0,
-        path TEXT,
-        refcount INTEGER DEFAULT 1,
-        created_at INTEGER
-    );
-    CREATE TABLE IF NOT EXISTS files (
-        id INTEGER PRIMARY KEY,
-        name TEXT,
-        parent_id INTEGER,
-        is_dir INTEGER DEFAULT 0,
-        blob_id INTEGER,
-        owner_id INTEGER,
-        created_at INTEGER,
-        modified_at INTEGER
-    );
-    CREATE TABLE IF NOT EXISTS acls (
-        id INTEGER PRIMARY KEY,
-        file_id INTEGER,
-        subject_type TEXT, -- 'user' or 'group'
-        subject_id INTEGER,
-        perms TEXT -- e.g. 'rwx' or 'r', 'rw'
-    );
-    CREATE TABLE IF NOT EXISTS tokens (
-        token TEXT PRIMARY KEY,
-        user_id INTEGER,
-        issued_at INTEGER
-    );
-    CREATE TABLE IF NOT EXISTS audit_logs (
-        id INTEGER PRIMARY KEY,
-        ts INTEGER,
-        user_id INTEGER,
-        action TEXT,
-        target TEXT,
-        detail TEXT
-    );
+    # 创建用户表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            email TEXT,
+            is_admin BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
     ''')
+
+    # 创建组表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # 创建用户组关联表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_groups (
+            user_id INTEGER,
+            group_id INTEGER,
+            PRIMARY KEY (user_id, group_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+        )
+    ''')
+
+    # 创建权限表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT
+        )
+    ''')
+
+    # 创建文件表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            path TEXT NOT NULL,
+            size INTEGER,
+            mime_type TEXT,
+            owner_id INTEGER,
+            group_id INTEGER,
+            permissions TEXT,  -- JSON格式存储权限
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL,
+            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
+        )
+    ''')
+
+    # 创建日志表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            resource_type TEXT,
+            resource_id INTEGER,
+            details TEXT,
+            ip_address TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        )
+    ''')
+
+    # 创建配置表
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT UNIQUE NOT NULL,
+            value TEXT NOT NULL,
+            description TEXT
+        )
+    ''')
+
+    # 插入默认权限
+    default_permissions = [
+        ('read', '读取权限'),
+        ('write', '写入权限'),
+        ('execute', '执行权限'),
+        ('delete', '删除权限')
+    ]
+
+    for perm_name, perm_desc in default_permissions:
+        cursor.execute(
+            'INSERT OR IGNORE INTO permissions (name, description) VALUES (?, ?)',
+            (perm_name, perm_desc)
+        )
+
+    # 创建默认管理员用户 (密码为admin123)
+    password_hash = hashlib.sha256('admin123'.encode()).hexdigest()
+    cursor.execute(
+        'INSERT OR IGNORE INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)',
+        ('admin', password_hash, True)
+    )
+
     conn.commit()
-    # ensure root dir entry
-    cur = conn.cursor()
-    cur.execute('SELECT id FROM files WHERE id=1')
-    if cur.fetchone() is None:
-        now = int(time.time())
-        cur.execute('INSERT INTO files (id, name, parent_id, is_dir, owner_id, created_at, modified_at) VALUES (1, ?, NULL, 1, NULL, ?, ?)'
-                    , ('/', now, now))
-        conn.commit()
     conn.close()
+    logger.info("数据库初始化完成")
 
-init_db()
+# 数据模型
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    email: Optional[str] = None
 
-# --- utils ---
-
-def now_ts():
-    return int(time.time())
-
-
-def hash_pw(password: str, salt: Optional[bytes] = None) -> str:
-    if salt is None:
-        salt = os.urandom(16)
-    dk = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100_000)
-    return salt.hex() + dk.hex()
-
-
-def verify_pw(password: str, stored: str) -> bool:
-    try:
-        salt = bytes.fromhex(stored[:32])
-        dk = stored[32:]
-        check = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100_000).hex()
-        return check == dk
-    except Exception:
-        return False
-
-
-def emit_audit(user_id: Optional[int], action: str, target: str, detail: Optional[str] = None):
-    conn = get_conn(); c = conn.cursor()
-    c.execute('INSERT INTO audit_logs (ts, user_id, action, target, detail) VALUES (?, ?, ?, ?, ?)'
-              , (now_ts(), user_id, action, target, detail))
-    conn.commit(); conn.close()
-
-# --- user management ---
-
-def ensure_admin():
-    conn = get_conn(); c = conn.cursor()
-    c.execute('SELECT id FROM users WHERE username=?', (ADMIN_USERNAME,))
-    if c.fetchone() is None:
-        ph = hash_pw(ADMIN_PASSWORD)
-        c.execute('INSERT INTO users (username, password_hash, created_at, quota_bytes) VALUES (?, ?, ?, ?)',
-                  (ADMIN_USERNAME, ph, now_ts(), DEFAULT_USER_QUOTA))
-        conn.commit()
-    conn.close()
-
-ensure_admin()
-
-
-def create_user(username: str, password: str, quota: Optional[int] = None):
-    conn = get_conn(); c = conn.cursor()
-    ph = hash_pw(password)
-    q = quota or DEFAULT_USER_QUOTA
-    c.execute('INSERT INTO users (username, password_hash, created_at, quota_bytes) VALUES (?, ?, ?, ?)',
-              (username, ph, now_ts(), q))
-    conn.commit(); conn.close()
-
-
-def issue_token_for_user(user_id: int) -> str:
-    token = uuid.uuid4().hex
-    conn = get_conn(); c = conn.cursor()
-    c.execute('INSERT INTO tokens (token, user_id, issued_at) VALUES (?, ?, ?)', (token, user_id, now_ts()))
-    conn.commit(); conn.close()
-    return token
-
-
-def get_user_by_token(token: str):
-    if not token:
-        return None
-    conn = get_conn(); c = conn.cursor()
-    c.execute('SELECT u.* FROM users u JOIN tokens t ON t.user_id=u.id WHERE t.token=?', (token,))
-    row = c.fetchone()
-    conn.close()
-    return dict(row) if row else None
-
-async def get_current_user(request: Request):
-    # token in header 'x-auth-token' or cookie
-    token = request.headers.get('x-auth-token') or request.cookies.get('auth')
-    user = get_user_by_token(token)
-    if not user:
-        raise HTTPException(status_code=401, detail='Unauthorized')
-    return user
-
-# --- blob storage (去重 + 可选压缩) ---
-
-async def store_blob(stream, compress=ENABLE_COMPRESSION):
-    # stream: bytes-like or file-like
-    data = await stream.read()
-    sha = hashlib.sha256(data).hexdigest()
-    conn = get_conn(); c = conn.cursor()
-    c.execute('SELECT * FROM blobs WHERE sha256=?', (sha,))
-    existing = c.fetchone()
-    if existing:
-        # 增 refcount
-        c.execute('UPDATE blobs SET refcount=refcount+1 WHERE id=?', (existing['id'],))
-        conn.commit(); conn.close()
-        return existing['id']
-    # store
-    blob_path = os.path.join(STORAGE_DIR, 'blobs', sha)
-    compressed = 0
-    if compress:
-        blob_path = blob_path + '.gz'
-        with gzip.open(blob_path, 'wb') as f:
-            f.write(data)
-        size = os.path.getsize(blob_path)
-        compressed = 1
-    else:
-        async with aiofiles.open(blob_path, 'wb') as f:
-            await f.write(data)
-        size = os.path.getsize(blob_path)
-    c.execute('INSERT INTO blobs (sha256, size, compressed, path, refcount, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-              (sha, size, compressed, blob_path, 1, now_ts()))
-    conn.commit(); blob_id = c.lastrowid; conn.close()
-    return blob_id
-
-
-def get_blob_path(blob_id: int):
-    conn = get_conn(); c = conn.cursor()
-    c.execute('SELECT * FROM blobs WHERE id=?', (blob_id,))
-    row = c.fetchone(); conn.close()
-    if not row:
-        return None
-    return row['path'], bool(row['compressed']), row['size']
-
-# --- simple permission check ---
-
-def check_perm(user_id: int, file_id: int, perm: str) -> bool:
-    # perm in 'r','w','x'
-    conn = get_conn(); c = conn.cursor()
-    # owner has all perms
-    # owner has all perms
-    c.execute('SELECT owner_id FROM files WHERE id=?', (file_id,))
-    r = c.fetchone()
-    if r and r['owner_id'] == user_id:
-        conn.close(); return True
-    # check user acl
-    c.execute('SELECT perms FROM acls WHERE file_id=? AND subject_type=? AND subject_id=?', (file_id, 'user', user_id))
-    row = c.fetchone()
-    if row and perm in row['perms']:
-        conn.close(); return True
-    # check group acls
-    c.execute('SELECT group_id FROM user_groups WHERE user_id=?', (user_id,))
-    gids = [r['group_id'] for r in c.fetchall()]
-    for gid in gids:
-        c.execute('SELECT perms FROM acls WHERE file_id=? AND subject_type=? AND subject_id=?', (file_id, 'group', gid))
-        rr = c.fetchone()
-        if rr and perm in rr['perms']:
-            conn.close(); return True
-    conn.close(); return False
-
-# --- file metadata operations ---
-
-def list_dir(parent_id: int):
-    conn = get_conn(); c = conn.cursor()
-    c.execute('SELECT * FROM files WHERE parent_id=?', (parent_id,))
-    rows = [dict(r) for r in c.fetchall()]
-    conn.close(); return rows
-
-def create_file_entry(name: str, parent_id: int, is_dir: bool, owner_id: Optional[int], blob_id: Optional[int] = None):
-    conn = get_conn(); c = conn.cursor()
-    now = now_ts()
-    c.execute('INSERT INTO files (name, parent_id, is_dir, blob_id, owner_id, created_at, modified_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-              (name, parent_id, 1 if is_dir else 0, blob_id, owner_id, now, now))
-    conn.commit(); fid = c.lastrowid; conn.close(); return fid
-
-# --- API models ---
-class LoginIn(BaseModel):
+class UserLogin(BaseModel):
     username: str
     password: str
 
-class UserOut(BaseModel):
-    id: int
+class FileInfo(BaseModel):
+    name: str
+    path: str
+    size: Optional[int] = None
+    mime_type: Optional[str] = None
+
+class TokenData(BaseModel):
+    user_id: int
     username: str
-    created_at: int
-    quota_bytes: int
+    is_admin: bool
 
-# --- Endpoints ---
+class ConfigItem(BaseModel):
+    key: str
+    value: str
+    description: Optional[str] = None
 
-@app.post('/api/login')
-async def login(data: LoginIn):
-    conn = get_conn(); c = conn.cursor()
-    c.execute('SELECT * FROM users WHERE username=?', (data.username,))
-    row = c.fetchone(); conn.close()
-    if not row or not verify_pw(data.password, row['password_hash']):
-        raise HTTPException(status_code=401, detail='Invalid credentials')
-    token = issue_token_for_user(row['id'])
-    emit_audit(row['id'], 'login', '/', 'successful')
-    return {'token': token}
+# 安全相关
+security = HTTPBearer()
 
-@app.post('/api/users', response_model=UserOut)
-async def api_create_user(username: str = Form(...), password: str = Form(...), current=Depends(get_current_user)):
-    # only admin can create users (simplified: username==ADMIN_USERNAME)
-    if current['username'] != ADMIN_USERNAME:
-        raise HTTPException(status_code=403, detail='Forbidden')
-    create_user(username, password)
-    conn = get_conn(); c = conn.cursor(); c.execute('SELECT * FROM users WHERE username=?', (username,)); r = c.fetchone(); conn.close()
-    return UserOut(id=r['id'], username=r['username'], created_at=r['created_at'], quota_bytes=r['quota_bytes'])
+# FastAPI应用
+app = FastAPI(
+    title="FilePy 文件服务器",
+    description="一个轻量级的文件服务器，支持权限控制和Web界面",
+    version="1.0.0"
+)
 
-@app.post('/api/upload')
-async def upload_file(parent_id: int = Form(1), file: UploadFile = File(...), current=Depends(get_current_user)):
+# CORS配置
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 认证依赖
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> TokenData:
+    """验证JWT令牌并返回用户信息"""
+    # 简化实现：这里直接解析令牌，实际应该使用JWT库
     try:
-        # check write perm on parent
-        if not check_perm(current['id'], parent_id, 'w'):
-            raise HTTPException(status_code=403, detail='No write permission on target directory')
-        # read file
-        # wrap upload file into small async object for store_blob
-        class ReadWrapper:
-            def __init__(self, f): self.f = f
-            async def read(self):
-                # file.read() is blocking; run in thread to avoid blocking event loop
-                return await _run_in_thread(self.f.read)
-        blob_id = await store_blob(ReadWrapper(file.file))
-        fid = create_file_entry(file.filename, parent_id, False, current['id'], blob_id)
-        emit_audit(current['id'], 'upload', f'file:{fid}', file.filename)
-        return {'file_id': fid}
-    except Exception as e:
-        tb = traceback.format_exc()
-        traceback.print_exc()
-        try:
-            with open(os.path.join(BASE_DIR, 'upload_error.log'), 'a', encoding='utf-8') as lf:
-                lf.write(tb + '\n')
-        except Exception:
-            pass
-        if FS_DEBUG:
-            return JSONResponse({'error': str(e), 'trace': tb}, status_code=500)
-        else:
-            return JSONResponse({'error': 'Internal server error'}, status_code=500)
+        token_data = json.loads(credentials.credentials)
+        return TokenData(**token_data)
+    except:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的认证令牌",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-@app.get('/api/list')
-async def api_list(parent_id: int = 1, current=Depends(get_current_user)):
-    # basic read perm check
-    if not check_perm(current['id'], parent_id, 'r'):
-        raise HTTPException(status_code=403, detail='No read permission')
-    rows = list_dir(parent_id)
-    return {'files': rows}
+# 工具函数
+def hash_password(password: str) -> str:
+    """对密码进行哈希处理"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
-@app.get('/api/download/{file_id}')
-async def download(file_id: int, current=Depends(get_current_user)):
-    try:
-        conn = get_conn(); c = conn.cursor(); c.execute('SELECT * FROM files WHERE id=?', (file_id,)); f = c.fetchone(); conn.close()
-        if not f:
-            raise HTTPException(status_code=404, detail='Not found')
-        if f['is_dir']:
-            raise HTTPException(status_code=400, detail='Is a directory')
-        if not check_perm(current['id'], file_id, 'r'):
-            raise HTTPException(status_code=403, detail='No read permission')
-        if not f['blob_id']:
-            raise HTTPException(status_code=404, detail='Blob not found')
-        blob_info = get_blob_path(f['blob_id'])
-        if not blob_info:
-            raise HTTPException(status_code=404, detail='Blob metadata not found')
-        path, compressed, size = blob_info
-        if not path or not os.path.exists(path):
-            raise HTTPException(status_code=404, detail='Blob file missing on disk')
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """验证密码"""
+    return hash_password(plain_password) == hashed_password
 
-        # stream file
-        def iterfile():
-            if compressed:
-                with gzip.open(path, 'rb') as g:
-                    while True:
-                        chunk = g.read(8192)
-                        if not chunk: break
-                        yield chunk
-            else:
-                with open(path, 'rb') as fh:
-                    while True:
-                        chunk = fh.read(8192)
-                        if not chunk: break
-                        yield chunk
-
-        emit_audit(current['id'], 'download', f'file:{file_id}', f['name'])
-        # Build Content-Disposition safely: provide ASCII fallback and RFC5987 filename* for UTF-8 names
-        def make_content_disposition(name: str) -> str:
-            # try latin-1 encoding first
-            try:
-                name.encode('latin-1')
-                return f'attachment; filename="{name}"'
-            except UnicodeEncodeError:
-                # if original name has any non-ASCII, use friendly fallback 'file' + original extension
-                _, orig_ext = os.path.splitext(name)
-                if any(ord(ch) > 127 for ch in name):
-                    ascii_name = 'file' + (orig_ext or '')
-                else:
-                    # otherwise try to normalize and strip diacritics
-                    ascii_name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode('ascii')
-                    base, ext = os.path.splitext(ascii_name)
-                    ascii_name = (base or 'file') + (ext or orig_ext or '')
-                quoted = urllib.parse.quote(name, safe='')
-                header = f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quoted}"
-                # debug: write computed ascii_name/header
-                try:
-                    with open(os.path.join(BASE_DIR, 'cd_debug.log'), 'a', encoding='utf-8') as df:
-                        df.write(f"name={name!r} ascii_name={ascii_name!r} header={header}\n")
-                except Exception:
-                    pass
-                return header
-
-        headers = {'Content-Disposition': make_content_disposition(f['name'])}
-        return StreamingResponse(iterfile(), media_type='application/octet-stream', headers=headers)
-    except HTTPException:
-        # re-raise HTTP exceptions for proper client codes
-        raise
-    except Exception as e:
-        tb = traceback.format_exc()
-        traceback.print_exc()
-        try:
-            with open(os.path.join(BASE_DIR, 'download_error.log'), 'a', encoding='utf-8') as lf:
-                lf.write(tb + '\n')
-        except Exception:
-            pass
-        if FS_DEBUG:
-            return JSONResponse({'error': str(e), 'trace': tb}, status_code=500)
-        else:
-            return JSONResponse({'error': 'Internal server error'}, status_code=500)
-
-@app.post('/api/delete/{file_id}')
-async def delete_file(file_id: int, current=Depends(get_current_user)):
-    if not check_perm(current['id'], file_id, 'w'):
-        raise HTTPException(status_code=403, detail='No permission to delete')
-    conn = get_conn(); c = conn.cursor()
-    c.execute('SELECT * FROM files WHERE id=?', (file_id,)); f = c.fetchone()
-    if not f:
-        conn.close(); raise HTTPException(status_code=404)
-    if f['is_dir']:
-        # naive: prevent deleting root
-        if f['id'] == 1:
-            conn.close(); raise HTTPException(status_code=400, detail='Cannot delete root')
-    blob_id = f['blob_id']
-    c.execute('DELETE FROM files WHERE id=?', (file_id,))
-    if blob_id:
-        c.execute('UPDATE blobs SET refcount=refcount-1 WHERE id=?', (blob_id,))
-        c.execute('SELECT refcount, path FROM blobs WHERE id=?', (blob_id,)); br = c.fetchone()
-        if br and br['refcount'] <= 0:
-            try:
-                os.remove(br['path'])
-            except Exception:
-                pass
-            c.execute('DELETE FROM blobs WHERE id=?', (blob_id,))
-    conn.commit(); conn.close()
-    emit_audit(current['id'], 'delete', f'file:{file_id}', f['name'])
-    return {'ok': True}
-
-@app.get('/metrics')
-async def metrics(current=Depends(get_current_user)):
-    # basic metrics endpoint to integrate with Nagios/Zabbix via HTTP JSON
-    conn = get_conn(); c = conn.cursor()
-    c.execute('SELECT COUNT(*) as cnt FROM files'); files_cnt = c.fetchone()['cnt']
-    c.execute('SELECT COUNT(*) as cnt FROM blobs'); blobs_cnt = c.fetchone()['cnt']
-    # disk usage
-    total, used, free = shutil_disk_usage(STORAGE_DIR)
+def log_action(user_id: int, action: str, resource_type: str, resource_id: int, details: str = "", ip: str = ""):
+    """记录操作日志"""
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT INTO logs (user_id, action, resource_type, resource_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)',
+        (user_id, action, resource_type, resource_id, details, ip)
+    )
+    conn.commit()
     conn.close()
-    return {'files': files_cnt, 'blobs': blobs_cnt, 'disk_total': total, 'disk_used': used, 'disk_free': free}
 
-def shutil_disk_usage(path):
-    try:
-        import shutil
-        s = shutil.disk_usage(path)
-        return s.total, s.used, s.free
-    except Exception:
-        return 0,0,0
+# API路由
 
-@app.get('/health')
-async def health():
-    return {'status': 'ok', 'time': now_ts()}
-
-# --- Web UI (极简) ---
-INDEX_HTML = '''<!doctype html>
-<html>
-<head><title>Mini File Server</title></head>
-<body>
-<h1>Mini File Server</h1>
-<div id="login">
-<form method="post" action="/login">
-Username: <input name="username" /> Password: <input name="password" type="password" />
-<button type="submit">Login</button>
-</form>
-</div>
-</body>
-</html>
-'''
-
-@app.get('/', response_class=HTMLResponse)
-async def index():
-    return INDEX_HTML
-
-@app.post('/login')
-async def web_login(username: str = Form(...), password: str = Form(...)):
-    conn = get_conn(); c = conn.cursor(); c.execute('SELECT * FROM users WHERE username=?', (username,)); r = c.fetchone(); conn.close()
-    if not r or not verify_pw(password, r['password_hash']):
-        return HTMLResponse('<p>登录失败</p>', status_code=401)
-    token = issue_token_for_user(r['id'])
-    res = HTMLResponse('<p>登录成功，跳转到文件页 <a href="/files">Files</a></p>')
-    res.set_cookie('auth', token, httponly=True)
-    return res
-
-@app.get('/files', response_class=HTMLResponse)
-async def web_files(request: Request, parent_id: int = 1):
-    # try get current
-    try:
-        user = await get_current_user(request)
-    except Exception:
-        return HTMLResponse('<p>请先登录 <a href="/">登录</a></p>', status_code=401)
-    rows = list_dir(parent_id)
-    s = '<h2>Files</h2><ul>'
-    for r in rows:
-        name = r['name']
-        if r['is_dir']:
-            s += f'<li>[DIR] {name}</li>'
-        else:
-            s += f'<li>{name} - <a href="/api/download/{r["id"]}">下载</a></li>'
-    s += '</ul>'
-    s += '''<h3>Upload</h3>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="file" />
-    <input type="hidden" name="parent_id" value="%d" />
-    <button type="submit">Upload</button>
-    </form>''' % parent_id
-    return HTMLResponse(s)
-
-@app.post('/upload')
-async def web_upload(request: Request, file: UploadFile = File(...), parent_id: int = Form(1)):
-    try:
-        try:
-            user = await get_current_user(request)
-        except Exception:
-            return HTMLResponse('<p>请先登录</p>', status_code=401)
-        class ReadWrapper:
-            def __init__(self, f): self.f = f
-            async def read(self):
-                # file.read() is blocking; run in thread to avoid blocking event loop
-                return await _run_in_thread(self.f.read)
-        blob_id = await store_blob(ReadWrapper(file.file))
-        fid = create_file_entry(file.filename, parent_id, False, user['id'], blob_id)
-        emit_audit(user['id'], 'upload_web', f'file:{fid}', file.filename)
-        return JSONResponse({'file_id': fid})
-    except Exception as e:
-        tb = traceback.format_exc()
-        traceback.print_exc()
-        try:
-            with open(os.path.join(BASE_DIR, 'upload_error.log'), 'a', encoding='utf-8') as lf:
-                lf.write(tb + '\n')
-        except Exception:
-            pass
-        if FS_DEBUG:
-            return HTMLResponse(f'<pre>{tb}</pre>', status_code=500)
-        else:
-            return HTMLResponse('<p>Internal server error</p>', status_code=500)
-
-# --- quotas (simple) ---
-@app.get('/api/quota')
-async def api_quota(current=Depends(get_current_user)):
-    conn = get_conn(); c = conn.cursor(); c.execute('SELECT quota_bytes FROM users WHERE id=?', (current['id'],)); q = c.fetchone()['quota_bytes']
-    # compute used bytes
-    c.execute('SELECT SUM(b.size) as used FROM files f JOIN blobs b ON f.blob_id=b.id WHERE f.owner_id=?', (current['id'],))
-    used = c.fetchone()['used'] or 0
+@app.post("/auth/login", summary="用户登录")
+async def login(user_data: UserLogin):
+    """用户登录接口"""
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        'SELECT id, username, password_hash, is_admin FROM users WHERE username = ?',
+        (user_data.username,)
+    )
+    user = cursor.fetchone()
     conn.close()
-    warn = used > q * 0.9
-    return {'quota': q, 'used': used, 'warn': warn}
 
-# --- ACL endpoints ---
-@app.post('/api/acl/set')
-async def set_acl(file_id: int = Form(...), subject_type: str = Form(...), subject_id: int = Form(...), perms: str = Form(...), current=Depends(get_current_user)):
-    # admin required for simplicity
-    if current['username'] != ADMIN_USERNAME:
-        raise HTTPException(status_code=403)
-    conn = get_conn(); c = conn.cursor(); c.execute('INSERT INTO acls (file_id, subject_type, subject_id, perms) VALUES (?, ?, ?, ?)', (file_id, subject_type, subject_id, perms)); conn.commit(); conn.close()
-    emit_audit(current['id'], 'acl_set', f'file:{file_id}', json.dumps({'subject_type': subject_type, 'subject_id': subject_id, 'perms': perms}))
-    return {'ok': True}
+    if not user or not verify_password(user_data.password, user[2]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码错误"
+        )
 
-@app.get('/api/logs')
-async def get_logs(limit: int = 100, current=Depends(get_current_user)):
-    if current['username'] != ADMIN_USERNAME:
-        raise HTTPException(status_code=403)
-    conn = get_conn(); c = conn.cursor(); c.execute('SELECT * FROM audit_logs ORDER BY ts DESC LIMIT ?', (limit,)); rows = [dict(r) for r in c.fetchall()]; conn.close()
-    return {'logs': rows}
+    # 简化实现：返回用户信息作为令牌
+    token_data = {
+        "user_id": user[0],
+        "username": user[1],
+        "is_admin": bool(user[3])
+    }
+    token = json.dumps(token_data)
 
-# --- startup tasks ---
-@app.on_event('startup')
-async def startup_event():
-    # ensure admin exists
-    ensure_admin()
+    return {"access_token": token, "token_type": "bearer"}
 
-# --- main runner ---
-if __name__ == '__main__':
-    import uvicorn
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--host', default='0.0.0.0')
-    parser.add_argument('--port', type=int, default=1966)
-    parser.add_argument('--ssl-cert', default=None)
-    parser.add_argument('--ssl-key', default=None)
+@app.post("/auth/register", summary="用户注册")
+async def register(user_data: UserCreate, current_user: TokenData = Depends(get_current_user)):
+    """用户注册接口（需要管理员权限）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以创建用户"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            'INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)',
+            (user_data.username, hash_password(user_data.password), user_data.email)
+        )
+        conn.commit()
+        user_id = cursor.lastrowid
+        log_action(current_user.user_id, "create_user", "user", user_id, f"创建用户 {user_data.username}")
+        return {"id": user_id, "username": user_data.username, "email": user_data.email}
+    except sqlite3.IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="用户名已存在"
+        )
+    finally:
+        conn.close()
+
+@app.get("/files", summary="获取文件列表")
+async def list_files(
+    path: str = "/",
+    current_user: TokenData = Depends(get_current_user)
+):
+    """获取文件列表"""
+    # 确保文件存储目录存在
+    storage_path = Path("storage")
+    storage_path.mkdir(exist_ok=True)
+
+    # 获取目录下的文件
+    try:
+        full_path = storage_path / path.lstrip("/")
+        if not full_path.exists():
+            raise HTTPException(status_code=404, detail="路径不存在")
+
+        if full_path.is_file():
+            raise HTTPException(status_code=400, detail="路径不是目录")
+
+        items = []
+        for item in full_path.iterdir():
+            stat = item.stat()
+            items.append({
+                "name": item.name,
+                "path": str(item.relative_to(storage_path)),
+                "is_dir": item.is_dir(),
+                "size": stat.st_size if item.is_file() else None,
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
+            })
+
+        log_action(current_user.user_id, "list_files", "directory", 0, f"查看目录 {path}")
+        return items
+    except Exception as e:
+        logger.error(f"获取文件列表失败: {e}")
+        raise HTTPException(status_code=500, detail="服务器内部错误")
+
+@app.post("/files/upload", summary="上传文件")
+async def upload_file(
+    file: UploadFile = File(...),
+    path: str = Form("/"),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """上传文件"""
+    try:
+        # 确保存储目录存在
+        storage_path = Path("storage")
+        storage_path.mkdir(exist_ok=True)
+
+        # 构建完整路径
+        target_dir = storage_path / path.lstrip("/")
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        file_path = target_dir / file.filename
+
+        # 保存文件
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+
+        # 保存文件信息到数据库
+        conn = sqlite3.connect('filepy.db')
+        cursor = conn.cursor()
+        stat = file_path.stat()
+
+        cursor.execute(
+            'INSERT INTO files (name, path, size, mime_type, owner_id) VALUES (?, ?, ?, ?, ?)',
+            (file.filename, str(file_path), stat.st_size, file.content_type, current_user.user_id)
+        )
+        file_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        log_action(current_user.user_id, "upload_file", "file", file_id, f"上传文件 {file.filename} 到 {path}")
+
+        return {
+            "id": file_id,
+            "filename": file.filename,
+            "size": stat.st_size,
+            "content_type": file.content_type
+        }
+    except Exception as e:
+        logger.error(f"文件上传失败: {e}")
+        raise HTTPException(status_code=500, detail="文件上传失败")
+
+@app.get("/files/download/{file_path:path}", summary="下载文件")
+async def download_file(
+    file_path: str,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """下载文件"""
+    try:
+        storage_path = Path("storage")
+        full_path = storage_path / file_path
+
+        if not full_path.exists() or full_path.is_dir():
+            raise HTTPException(status_code=404, detail="文件不存在")
+
+        # 记录日志
+        conn = sqlite3.connect('filepy.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT id FROM files WHERE path = ?', (str(full_path),))
+        file_record = cursor.fetchone()
+        file_id = file_record[0] if file_record else 0
+        conn.close()
+
+        log_action(current_user.user_id, "download_file", "file", file_id, f"下载文件 {file_path}")
+
+        return FileResponse(str(full_path))
+    except Exception as e:
+        logger.error(f"文件下载失败: {e}")
+        raise HTTPException(status_code=500, detail="文件下载失败")
+
+@app.delete("/files/{file_path:path}", summary="删除文件")
+async def delete_file(
+    file_path: str,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """删除文件"""
+    try:
+        storage_path = Path("storage")
+        full_path = storage_path / file_path
+
+        if not full_path.exists():
+            raise HTTPException(status_code=404, detail="文件不存在")
+
+        # 从数据库删除文件记录
+        conn = sqlite3.connect('filepy.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT id FROM files WHERE path = ?', (str(full_path),))
+        file_record = cursor.fetchone()
+        file_id = file_record[0] if file_record else 0
+
+        if file_id:
+            cursor.execute('DELETE FROM files WHERE id = ?', (file_id,))
+            conn.commit()
+        conn.close()
+
+        # 删除物理文件
+        if full_path.is_file():
+            full_path.unlink()
+        elif full_path.is_dir():
+            import shutil
+            shutil.rmtree(full_path)
+
+        log_action(current_user.user_id, "delete_file", "file", file_id, f"删除文件 {file_path}")
+
+        return {"message": "文件删除成功"}
+    except Exception as e:
+        logger.error(f"文件删除失败: {e}")
+        raise HTTPException(status_code=500, detail="文件删除失败")
+
+@app.get("/logs", summary="获取操作日志")
+async def get_logs(
+    limit: int = 50,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """获取操作日志（仅管理员）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以查看日志"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        'SELECT l.id, u.username, l.action, l.resource_type, l.details, l.ip_address, l.created_at FROM logs l LEFT JOIN users u ON l.user_id = u.id ORDER BY l.created_at DESC LIMIT ?',
+        (limit,)
+    )
+    logs = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "id": log[0],
+            "username": log[1] or "未知用户",
+            "action": log[2],
+            "resource_type": log[3],
+            "details": log[4],
+            "ip_address": log[5],
+            "created_at": log[6]
+        }
+        for log in logs
+    ]
+
+@app.get("/config", summary="获取配置列表")
+async def get_config(current_user: TokenData = Depends(get_current_user)):
+    """获取配置列表（仅管理员）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以查看配置"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT key, value, description FROM config')
+    configs = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "key": config[0],
+            "value": config[1],
+            "description": config[2]
+        }
+        for config in configs
+    ]
+
+@app.post("/config", summary="添加或更新配置")
+async def set_config(
+    config_item: ConfigItem,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """添加或更新配置项（仅管理员）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以修改配置"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT OR REPLACE INTO config (key, value, description) VALUES (?, ?, ?)',
+        (config_item.key, config_item.value, config_item.description)
+    )
+    conn.commit()
+    conn.close()
+
+    log_action(current_user.user_id, "update_config", "config", 0, f"更新配置项 {config_item.key}")
+
+    return {"message": "配置项已保存"}
+
+@app.delete("/config/{key}", summary="删除配置项")
+async def delete_config(
+    key: str,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """删除配置项（仅管理员）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以删除配置"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM config WHERE key = ?', (key,))
+    conn.commit()
+    conn.close()
+
+    log_action(current_user.user_id, "delete_config", "config", 0, f"删除配置项 {key}")
+
+    return {"message": "配置项已删除"}
+
+@app.get("/", summary="Web界面")
+async def web_interface():
+    """提供简单的Web界面"""
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>FilePy 文件服务器</title>
+        <meta charset="utf-8">
+        <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+            .header { background: #007cba; color: white; padding: 20px; border-radius: 5px 5px 0 0; }
+            .login-container { background: white; padding: 30px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 20px; text-align: center; }
+            .main-container { background: white; padding: 30px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 20px; display: none; }
+            .file-list { margin-top: 20px; }
+            .file-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+            .file-item:hover { background: #f9f9f9; }
+            .upload-form { margin-top: 20px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9; }
+            button { background: #007cba; color: white; border: none; padding: 10px 20px; border-radius: 3px; cursor: pointer; margin: 5px; }
+            button:hover { background: #005a87; }
+            input, select { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 3px; }
+            .logout-btn { background: #dc3545; float: right; }
+            .logout-btn:hover { background: #c82333; }
+            .hidden { display: none; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>FilePy 文件服务器</h1>
+                <p>轻量级安全文件管理解决方案</p>
+            </div>
+
+            <!-- 登录界面 -->
+            <div id="loginContainer" class="login-container">
+                <h2>用户登录</h2>
+                <div>
+                    <input type="text" id="username" placeholder="用户名" required><br>
+                    <input type="password" id="password" placeholder="密码" required><br>
+                    <button onclick="login()">登录</button>
+                </div>
+                <p id="loginMessage" style="color: red;"></p>
+            </div>
+
+            <!-- 主界面（登录后显示） -->
+            <div id="mainContainer" class="main-container">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>文件管理</h2>
+                    <button class="logout-btn" onclick="logout()">退出登录</button>
+                </div>
+
+                <div class="upload-form">
+                    <h3>上传文件</h3>
+                    <form id="uploadForm">
+                        <input type="file" id="fileInput" required>
+                        <button type="submit">上传</button>
+                    </form>
+                </div>
+
+                <div class="file-list">
+                    <h3>文件列表</h3>
+                    <div id="fileList">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // 存储认证令牌
+            let authToken = null;
+            let currentUser = null;
+
+            // 页面加载时检查是否有存储的认证信息
+            window.onload = function() {
+                const storedToken = localStorage.getItem('filepy_token');
+                const storedUser = localStorage.getItem('filepy_user');
+                if (storedToken && storedUser) {
+                    authToken = storedToken;
+                    currentUser = JSON.parse(storedUser);
+                    showMainInterface();
+                    loadFiles();
+                }
+            };
+
+            // 登录函数
+            async function login() {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const messageElement = document.getElementById('loginMessage');
+
+                if (!username || !password) {
+                    messageElement.textContent = "用户名和密码不能为空";
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/auth/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({username, password})
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        authToken = data.access_token;
+                        currentUser = JSON.parse(data.access_token);
+
+                        // 存储认证信息到localStorage
+                        localStorage.setItem('filepy_token', authToken);
+                        localStorage.setItem('filepy_user', JSON.stringify(currentUser));
+
+                        messageElement.textContent = "";
+                        showMainInterface();
+                        loadFiles();
+                    } else {
+                        const error = await response.json();
+                        messageElement.textContent = "登录失败: " + error.detail;
+                    }
+                } catch (error) {
+                    messageElement.textContent = "登录请求失败: " + error.message;
+                }
+            }
+
+            // 退出登录函数
+            function logout() {
+                authToken = null;
+                currentUser = null;
+
+                // 清除存储的认证信息
+                localStorage.removeItem('filepy_token');
+                localStorage.removeItem('filepy_user');
+
+                // 显示登录界面，隐藏主界面
+                document.getElementById('loginContainer').style.display = 'block';
+                document.getElementById('mainContainer').style.display = 'none';
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+            }
+
+            // 显示主界面
+            function showMainInterface() {
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('mainContainer').style.display = 'block';
+            }
+
+            // 加载文件列表
+            async function loadFiles() {
+                if (!authToken) {
+                    document.getElementById('fileList').innerHTML = '<p>请先登录</p>';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/files', {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const files = await response.json();
+                        displayFiles(files);
+                    } else {
+                        document.getElementById('fileList').innerHTML = '<p>加载文件列表失败</p>';
+                    }
+                } catch (error) {
+                    document.getElementById('fileList').innerHTML = '<p>加载文件列表失败: ' + error.message + '</p>';
+                }
+            }
+
+            // 显示文件列表
+            function displayFiles(files) {
+                const listElement = document.getElementById('fileList');
+
+                if (files.length === 0) {
+                    listElement.innerHTML = '<p>没有文件</p>';
+                    return;
+                }
+
+                listElement.innerHTML = files.map(file => `
+                    <div class="file-item">
+                        <div>
+                            <strong>${file.name}</strong>
+                            ${file.is_dir ? '(目录)' : `(${(file.size || 0)} bytes)`}
+                            <br><small>修改时间: ${file.modified || '未知'}</small>
+                        </div>
+                        <div>
+                            ${!file.is_dir ? `<button onclick="downloadFile('${file.path}')">下载</button>` : ''}
+                            <button onclick="deleteFile('${file.path}')">删除</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // 下载文件
+            async function downloadFile(filePath) {
+                if (!authToken) {
+                    alert("请先登录");
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/files/download/${filePath}`, {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filePath.split('/').pop();
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                    } else {
+                        alert("文件下载失败");
+                    }
+                } catch (error) {
+                    alert("文件下载失败: " + error.message);
+                }
+            }
+
+            // 删除文件
+            async function deleteFile(filePath) {
+                if (!authToken) {
+                    alert("请先登录");
+                    return;
+                }
+
+                if (!confirm("确定要删除这个文件吗？")) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/files/${filePath}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        alert("文件删除成功");
+                        loadFiles(); // 重新加载文件列表
+                    } else {
+                        const error = await response.json();
+                        alert("文件删除失败: " + error.detail);
+                    }
+                } catch (error) {
+                    alert("文件删除失败: " + error.message);
+                }
+            }
+
+            // 上传文件处理
+            document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                if (!authToken) {
+                    alert("请先登录");
+                    return;
+                }
+
+                const fileInput = document.getElementById('fileInput');
+                if (!fileInput.files[0]) {
+                    alert("请选择要上传的文件");
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                try {
+                    const response = await fetch('/files/upload', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        alert("文件上传成功: " + result.filename);
+                        loadFiles(); // 重新加载文件列表
+                        fileInput.value = ''; // 清空文件选择
+                    } else {
+                        const error = await response.json();
+                        alert("文件上传失败: " + error.detail);
+                    }
+                } catch (error) {
+                    alert("文件上传失败: " + error.message);
+                }
+            });
+
+            // 支持回车键登录
+            document.getElementById('password').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    login();
+                }
+            });
+        </script>
+    </body>
+    </html>
+    """)
+
+if __name__ == "__main__":
+    # 初始化数据库
+    init_database()
+
+    # 创建存储目录
+    Path("storage").mkdir(exist_ok=True)
+
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description="FilePy 文件服务器")
+    parser.add_argument("--host", default="127.0.0.1", help="服务器主机地址")
+    parser.add_argument("--port", type=int, default=1966, help="服务器端口")
     args = parser.parse_args()
-    kwargs = {}
-    if args.ssl_cert and args.ssl_key:
-        kwargs['ssl_certfile'] = args.ssl_cert
-        kwargs['ssl_keyfile'] = args.ssl_key
-    uvicorn.run('file_server:app', host=args.host, port=args.port, reload=False, **kwargs)
+
+    # 启动服务器
+    logger.info(f"FilePy 文件服务器启动中... http://{args.host}:{args.port}")
+    uvicorn.run("FilePy:app", host=args.host, port=args.port, reload=False)

@@ -3,6 +3,8 @@ files/
 logs/
 ssl/
 storage/
+.claude/
+filepy.db
 
 # Python 缓存
 __pycache__/
@@ -22,3 +24,4 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+xuqiu.txt
