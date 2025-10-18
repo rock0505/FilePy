@@ -19,7 +19,7 @@ Features (prototype):
 Notes & limitations:
 - This is a minimal prototype for demo and testing. For production use, add robust authentication (OAuth2/OpenID), rate limiting, proper TLS termination, secure password rotation, backup/replication, and storage driver abstraction.
 
-## 中文文档
+## 中文说明
 
 本项目为一个轻量级单文件文件服务器，支持文件上传、下载、列表展示，用户管理、ACL 权限、日志审计等功能，并提供一个简易的 Web UI。
 
