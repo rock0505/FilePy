@@ -1433,6 +1433,16 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=1966, help="服务器端口")
     args = parser.parse_args()
 
+    # 在 uvicorn.run 时，尝试使用环境变量提供的 TLS 证书
+    ssl_cert = os.getenv("SSL_CERTFILE")
+    ssl_key = os.getenv("SSL_KEYFILE")
+    ssl_kwargs = {}
+    if ssl_cert and ssl_key:
+        ssl_kwargs = {
+            "ssl_certfile": ssl_cert,
+            "ssl_keyfile": ssl_key
+        }
     # 启动服务器
     logger.info(f"FilePy 文件服务器启动中... http://{args.host}:{args.port}")
-    uvicorn.run("FilePy:app", host=args.host, port=args.port, reload=False)
+    uvicorn.run("FilePy:app", host=args.host, port=args.port, reload=False, **ssl_kwargs)
+
