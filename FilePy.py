@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-FilePy - 轻量级文件服务器
+FilePy v0.1.2 - 轻量级文件服务器
 使用Python + FastAPI + SQLite实现
 """
 
@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Optional, List, Dict
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, Form, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
@@ -142,6 +142,18 @@ def init_database():
         ('admin', password_hash, True)
     )
 
+    # 插入默认配置项
+    default_configs = [
+        ('max_upload_size', '104857600', '最大上传文件大小(字节)，默认100MB'),
+        ('allow_registration', 'false', '是否允许用户注册，默认false')
+    ]
+
+    for config_key, config_value, config_desc in default_configs:
+        cursor.execute(
+            'INSERT OR IGNORE INTO config (key, value, description) VALUES (?, ?, ?)',
+            (config_key, config_value, config_desc)
+        )
+
     conn.commit()
     conn.close()
     logger.info("数据库初始化完成")
@@ -155,6 +167,14 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
+
+class GroupCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class GroupUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 class FileInfo(BaseModel):
     name: str
@@ -172,8 +192,22 @@ class ConfigItem(BaseModel):
     value: str
     description: Optional[str] = None
 
+# ACL权限模型
+class FilePermission(BaseModel):
+    user_id: Optional[int] = None
+    group_id: Optional[int] = None
+    permission: str  # read, write, execute, delete
+
 # 安全相关
 security = HTTPBearer()
+
+# JWT secret key
+SECRET_KEY = "super-secret-key"  # 理想情况下应从 env / config 中读取
+
+# JWT 相关导入
+from jose import jwt, JWTError
+from datetime import datetime, timedelta
+
 
 # FastAPI应用
 app = FastAPI(
@@ -192,13 +226,23 @@ app.add_middleware(
 )
 
 # 认证依赖
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> TokenData:
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), request: Request = None) -> TokenData:
     """验证JWT令牌并返回用户信息"""
-    # 简化实现：这里直接解析令牌，实际应该使用JWT库
+    token = credentials.credentials
     try:
-        token_data = json.loads(credentials.credentials)
-        return TokenData(**token_data)
-    except:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        user_id: int = payload.get("user_id")
+        username: str = payload.get("username")
+        is_admin: bool = payload.get("is_admin")
+        if user_id is None or username is None:
+            raise JWTError
+        # 记录 IP 地址
+        ip = None
+        if request and request.client:
+            ip = request.client.host
+        # 这里可以在 log_action 中记录 ip，可选
+        return TokenData(user_id=user_id, username=username, is_admin=is_admin)
+    except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="无效的认证令牌",
@@ -225,6 +269,102 @@ def log_action(user_id: int, action: str, resource_type: str, resource_id: int, 
     conn.commit()
     conn.close()
 
+def check_file_permission(file_id: int, user_id: int, permission: str) -> bool:
+    """检查用户对文件的权限"""
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    # 获取文件信息
+    cursor.execute('SELECT owner_id, group_id, permissions FROM files WHERE id = ?', (file_id,))
+    file_record = cursor.fetchone()
+    if not file_record:
+        conn.close()
+        return False
+
+    owner_id, group_id, permissions_str = file_record
+
+    # 如果是文件所有者，允许所有操作
+    if owner_id == user_id:
+        conn.close()
+        return True
+
+    # 如果是管理员，允许所有操作
+    cursor.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,))
+    user_record = cursor.fetchone()
+    if user_record and user_record[0]:
+        conn.close()
+        return True
+
+    # 解析权限
+    try:
+        permissions = json.loads(permissions_str) if permissions_str else []
+    except:
+        permissions = []
+
+    # 检查用户特定权限
+    for perm in permissions:
+        if perm.get('user_id') == user_id and perm.get('permission') == permission:
+            conn.close()
+            return True
+
+    # 检查组权限
+    if group_id:
+        # 获取用户所属的所有组
+        cursor.execute('SELECT group_id FROM user_groups WHERE user_id = ?', (user_id,))
+        user_groups = [row[0] for row in cursor.fetchall()]
+
+        # 检查组权限
+        for perm in permissions:
+            if perm.get('group_id') in user_groups and perm.get('permission') == permission:
+                conn.close()
+                return True
+
+    conn.close()
+    return False
+
+def set_file_permissions(file_id: int, permissions: List[Dict]) -> bool:
+    """设置文件权限"""
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    try:
+        permissions_str = json.dumps(permissions)
+        cursor.execute('UPDATE files SET permissions = ? WHERE id = ?', (permissions_str, file_id))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        conn.close()
+        return False
+
+def get_file_permissions(file_id: int) -> List[Dict]:
+    """获取文件权限"""
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT permissions FROM files WHERE id = ?', (file_id,))
+    record = cursor.fetchone()
+    conn.close()
+
+    if record and record[0]:
+        try:
+            return json.loads(record[0])
+        except:
+            return []
+    return []
+
+def get_config_value(key: str, default_value: str = "") -> str:
+    """获取配置值"""
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT value FROM config WHERE key = ?', (key,))
+    record = cursor.fetchone()
+    conn.close()
+
+    if record:
+        return record[0]
+    return default_value
+
 # API路由
 
 @app.post("/auth/login", summary="用户登录")
@@ -245,14 +385,14 @@ async def login(user_data: UserLogin):
             detail="用户名或密码错误"
         )
 
-    # 简化实现：返回用户信息作为令牌
-    token_data = {
+    # 生成 JWT
+    to_encode = {
         "user_id": user[0],
         "username": user[1],
-        "is_admin": bool(user[3])
+        "is_admin": bool(user[3]),
+        "exp": datetime.utcnow() + timedelta(minutes=60)
     }
-    token = json.dumps(token_data)
-
+    token = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
     return {"access_token": token, "token_type": "bearer"}
 
 @app.post("/auth/register", summary="用户注册")
@@ -328,6 +468,26 @@ async def upload_file(
 ):
     """上传文件"""
     try:
+        # 检查文件大小限制
+        content = await file.read()
+        file_size = len(content)
+
+        # 获取最大上传大小配置
+        max_upload_size_str = get_config_value('max_upload_size', '104857600')  # 默认100MB
+        try:
+            max_upload_size = int(max_upload_size_str)
+        except ValueError:
+            max_upload_size = 104857600  # 默认100MB
+
+        if file_size > max_upload_size:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"文件大小超过限制 ({max_upload_size} bytes)"
+            )
+
+        # 重置文件指针
+        await file.seek(0)
+
         # 确保存储目录存在
         storage_path = Path("storage")
         storage_path.mkdir(exist_ok=True)
@@ -340,7 +500,6 @@ async def upload_file(
 
         # 保存文件
         with open(file_path, "wb") as buffer:
-            content = await file.read()
             buffer.write(content)
 
         # 保存文件信息到数据库
@@ -356,7 +515,7 @@ async def upload_file(
         conn.commit()
         conn.close()
 
-        log_action(current_user.user_id, "upload_file", "file", file_id, f"上传文件 {file.filename} 到 {path}")
+        log_action(current_user.user_id, "upload_file", "file", file_id, f"上传文件 {file.filename} 到 {path} (大小: {file_size} bytes)")
 
         return {
             "id": file_id,
@@ -364,6 +523,8 @@ async def upload_file(
             "size": stat.st_size,
             "content_type": file.content_type
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"文件上传失败: {e}")
         raise HTTPException(status_code=500, detail="文件上传失败")
@@ -434,6 +595,86 @@ async def delete_file(
     except Exception as e:
         logger.error(f"文件删除失败: {e}")
         raise HTTPException(status_code=500, detail="文件删除失败")
+
+# ACL权限管理API
+@app.get("/files/{file_id}/permissions", summary="获取文件权限")
+async def get_file_permissions_api(
+    file_id: int,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """获取文件权限列表"""
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    # 检查文件是否存在
+    cursor.execute('SELECT id, owner_id FROM files WHERE id = ?', (file_id,))
+    file_record = cursor.fetchone()
+    if not file_record:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="文件不存在"
+        )
+
+    # 检查用户是否有权限查看权限（文件所有者或管理员）
+    if file_record[1] != current_user.user_id and not current_user.is_admin:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="没有权限查看此文件的权限信息"
+        )
+
+    conn.close()
+    permissions = get_file_permissions(file_id)
+    return permissions
+
+@app.post("/files/{file_id}/permissions", summary="设置文件权限")
+async def set_file_permissions_api(
+    file_id: int,
+    permissions: List[FilePermission],
+    current_user: TokenData = Depends(get_current_user)
+):
+    """设置文件权限"""
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    # 检查文件是否存在
+    cursor.execute('SELECT id, owner_id FROM files WHERE id = ?', (file_id,))
+    file_record = cursor.fetchone()
+    if not file_record:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="文件不存在"
+        )
+
+    # 检查用户是否有权限设置权限（文件所有者或管理员）
+    if file_record[1] != current_user.user_id and not current_user.is_admin:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="没有权限设置此文件的权限"
+        )
+
+    conn.close()
+
+    # 转换权限格式
+    permissions_dict = []
+    for perm in permissions:
+        permissions_dict.append({
+            "user_id": perm.user_id,
+            "group_id": perm.group_id,
+            "permission": perm.permission
+        })
+
+    if set_file_permissions(file_id, permissions_dict):
+        log_action(current_user.user_id, "set_file_permissions", "file", file_id, "设置文件权限")
+        return {"message": "文件权限设置成功"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="设置文件权限失败"
+        )
 
 @app.get("/logs", summary="获取操作日志")
 async def get_logs(
@@ -539,6 +780,334 @@ async def delete_config(
     log_action(current_user.user_id, "delete_config", "config", 0, f"删除配置项 {key}")
 
     return {"message": "配置项已删除"}
+
+# 组管理API
+@app.post("/groups", summary="创建组")
+async def create_group(
+    group_data: GroupCreate,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """创建新组（需要管理员权限）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以创建组"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            'INSERT INTO groups (name, description) VALUES (?, ?)',
+            (group_data.name, group_data.description)
+        )
+        conn.commit()
+        group_id = cursor.lastrowid
+        log_action(current_user.user_id, "create_group", "group", group_id, f"创建组 {group_data.name}")
+        return {"id": group_id, "name": group_data.name, "description": group_data.description}
+    except sqlite3.IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="组名已存在"
+        )
+    finally:
+        conn.close()
+
+@app.get("/groups", summary="获取组列表")
+async def list_groups(
+    current_user: TokenData = Depends(get_current_user)
+):
+    """获取所有组列表（需要管理员权限）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以查看组列表"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, name, description, created_at FROM groups ORDER BY name')
+    groups = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "id": group[0],
+            "name": group[1],
+            "description": group[2],
+            "created_at": group[3]
+        }
+        for group in groups
+    ]
+
+@app.put("/groups/{group_id}", summary="更新组信息")
+async def update_group(
+    group_id: int,
+    group_data: GroupUpdate,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """更新组信息（需要管理员权限）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以更新组信息"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    # 检查组是否存在
+    cursor.execute('SELECT id FROM groups WHERE id = ?', (group_id,))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="组不存在"
+        )
+
+    # 更新组信息
+    update_fields = []
+    update_values = []
+
+    if group_data.name is not None:
+        update_fields.append("name = ?")
+        update_values.append(group_data.name)
+
+    if group_data.description is not None:
+        update_fields.append("description = ?")
+        update_values.append(group_data.description)
+
+    if not update_fields:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="没有提供要更新的字段"
+        )
+
+    update_values.append(group_id)
+    update_query = f"UPDATE groups SET {', '.join(update_fields)} WHERE id = ?"
+
+    try:
+        cursor.execute(update_query, update_values)
+        conn.commit()
+        log_action(current_user.user_id, "update_group", "group", group_id, f"更新组信息")
+        conn.close()
+        return {"message": "组信息更新成功"}
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="组名已存在"
+        )
+
+@app.delete("/groups/{group_id}", summary="删除组")
+async def delete_group(
+    group_id: int,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """删除组（需要管理员权限）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以删除组"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    # 检查组是否存在
+    cursor.execute('SELECT id, name FROM groups WHERE id = ?', (group_id,))
+    group = cursor.fetchone()
+    if not group:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="组不存在"
+        )
+
+    # 删除组（会级联删除用户组关联）
+    group_name = group[1]
+    cursor.execute('DELETE FROM groups WHERE id = ?', (group_id,))
+    conn.commit()
+    conn.close()
+
+    log_action(current_user.user_id, "delete_group", "group", group_id, f"删除组 {group_name}")
+
+    return {"message": "组删除成功"}
+
+# 用户组关联管理API
+class UserGroupAssign(BaseModel):
+    user_id: int
+
+@app.post("/groups/{group_id}/users", summary="将用户添加到组")
+async def assign_user_to_group(
+    group_id: int,
+    user_group_data: UserGroupAssign,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """将用户添加到指定组（需要管理员权限）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以管理用户组关联"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    # 检查组是否存在
+    cursor.execute('SELECT id, name FROM groups WHERE id = ?', (group_id,))
+    group = cursor.fetchone()
+    if not group:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="组不存在"
+        )
+
+    # 检查用户是否存在
+    cursor.execute('SELECT id, username FROM users WHERE id = ?', (user_group_data.user_id,))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    # 检查用户是否已经在此组中
+    cursor.execute(
+        'SELECT user_id FROM user_groups WHERE user_id = ? AND group_id = ?',
+        (user_group_data.user_id, group_id)
+    )
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="用户已在该组中"
+        )
+
+    # 添加用户到组
+    cursor.execute(
+        'INSERT INTO user_groups (user_id, group_id) VALUES (?, ?)',
+        (user_group_data.user_id, group_id)
+    )
+    conn.commit()
+    conn.close()
+
+    log_action(current_user.user_id, "assign_user_to_group", "user_group", 0,
+              f"将用户 {user[1]} 添加到组 {group[1]}")
+
+    return {"message": f"用户 {user[1]} 已成功添加到组 {group[1]}"}
+
+@app.delete("/groups/{group_id}/users/{user_id}", summary="从组中移除用户")
+async def remove_user_from_group(
+    group_id: int,
+    user_id: int,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """从指定组中移除用户（需要管理员权限）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以管理用户组关联"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    # 检查组是否存在
+    cursor.execute('SELECT id, name FROM groups WHERE id = ?', (group_id,))
+    group = cursor.fetchone()
+    if not group:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="组不存在"
+        )
+
+    # 检查用户是否存在
+    cursor.execute('SELECT id, username FROM users WHERE id = ?', (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    # 检查用户是否在此组中
+    cursor.execute(
+        'SELECT user_id FROM user_groups WHERE user_id = ? AND group_id = ?',
+        (user_id, group_id)
+    )
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="用户不在该组中"
+        )
+
+    # 从组中移除用户
+    cursor.execute(
+        'DELETE FROM user_groups WHERE user_id = ? AND group_id = ?',
+        (user_id, group_id)
+    )
+    conn.commit()
+    conn.close()
+
+    log_action(current_user.user_id, "remove_user_from_group", "user_group", 0,
+              f"从组 {group[1]} 中移除用户 {user[1]}")
+
+    return {"message": f"用户 {user[1]} 已从组 {group[1]} 中移除"}
+
+@app.get("/groups/{group_id}/users", summary="获取组中的用户列表")
+async def get_users_in_group(
+    group_id: int,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """获取指定组中的所有用户（需要管理员权限）"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只有管理员可以查看组用户列表"
+        )
+
+    conn = sqlite3.connect('filepy.db')
+    cursor = conn.cursor()
+
+    # 检查组是否存在
+    cursor.execute('SELECT id, name FROM groups WHERE id = ?', (group_id,))
+    group = cursor.fetchone()
+    if not group:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="组不存在"
+        )
+
+    # 获取组中的所有用户
+    cursor.execute('''
+        SELECT u.id, u.username, u.email, u.is_admin, u.created_at
+        FROM users u
+        INNER JOIN user_groups ug ON u.id = ug.user_id
+        WHERE ug.group_id = ?
+        ORDER BY u.username
+    ''', (group_id,))
+    users = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "id": user[0],
+            "username": user[1],
+            "email": user[2],
+            "is_admin": bool(user[3]),
+            "created_at": user[4]
+        }
+        for user in users
+    ]
 
 @app.get("/", summary="Web界面")
 async def web_interface():
@@ -647,11 +1216,11 @@ async def web_interface():
                     if (response.ok) {
                         const data = await response.json();
                         authToken = data.access_token;
-                        currentUser = JSON.parse(data.access_token);
+                        currentUser = null;
 
                         // 存储认证信息到localStorage
                         localStorage.setItem('filepy_token', authToken);
-                        localStorage.setItem('filepy_user', JSON.stringify(currentUser));
+                        localStorage.removeItem('filepy_user');
 
                         messageElement.textContent = "";
                         showMainInterface();
@@ -860,7 +1429,7 @@ if __name__ == "__main__":
 
     # 解析命令行参数
     parser = argparse.ArgumentParser(description="FilePy 文件服务器")
-    parser.add_argument("--host", default="127.0.0.1", help="服务器主机地址")
+    parser.add_argument("--host", default="0.0.0.0", help="服务器主机地址")
     parser.add_argument("--port", type=int, default=1966, help="服务器端口")
     args = parser.parse_args()
 
