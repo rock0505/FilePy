@@ -5,6 +5,7 @@ ssl/
 storage/
 .claude/
 filepy.db
+CLAUDE.md
 
 # Python 缓存
 __pycache__/
