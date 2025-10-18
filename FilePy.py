@@ -202,7 +202,7 @@ class FilePermission(BaseModel):
 security = HTTPBearer()
 
 # JWT secret key
-SECRET_KEY = "super-secret-key"  # 理想情况下应从 env / config 中读取
+SECRET_KEY = os.getenv("FILEPY_SECRET_KEY", "super-secret-key")  # 理想情况下应从 env / config 中读取
 
 # JWT 相关导入
 from jose import jwt, JWTError
