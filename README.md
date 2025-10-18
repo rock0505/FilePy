@@ -1,4 +1,4 @@
-Lightweight File Server (single-file prototype)
+FilePy v0.1.1 - Lightweight File Server (single-file prototype)
 
 Requirements:
 - Python 3.8+
