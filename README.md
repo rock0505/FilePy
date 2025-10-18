@@ -35,7 +35,6 @@ Notes & limitations:
 ├── FilePy.py          # 主应用文件，包含所有业务逻辑
 ├── requirements.txt   # 依赖列表
 ├── README.md          # 当前文件（含中英文版）
-├── CLAUDE.md          # 项目说明（保留）
 └── storage/           # 服务器存储目录
 ```
 
