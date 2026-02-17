@@ -1,9 +1,38 @@
+# FastAPI 核心依赖
 fastapi==0.95.2
 uvicorn==0.22.0
 aiofiles==23.1.0
 pydantic==1.10.11
 python-multipart==0.0.6
+
+# 认证与安全
 python-jose[cryptography]==3.3.0
-slowapi==0.1.9
 passlib[bcrypt]==1.7.4
+
+# 速率限制
+slowapi==0.1.9
+
+# 文件类型检测
 python-magic==0.4.27
+
+# 配置管理
+pydantic-settings==2.0.3
+
+# 邮箱验证
+email-validator==2.1.0
+
+# 测试框架
+pytest==8.3.5
+pytest-asyncio==0.21.1
+pytest-cov==5.0.0
+pytest-html==4.1.1
+pytest-json-report==1.5.0
+pytest-xdist==3.6.1
+httpx==0.24.1
+
+# 代码质量
+black==23.12.1
+isort==5.13.2
+pylint==3.0.3
+flake8==7.0.0
+mypy==1.8.0
