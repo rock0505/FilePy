@@ -203,6 +203,43 @@ def init_database(db: Database):
             )
         ''')
 
+        # 创建收藏表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS favorites (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                file_path TEXT NOT NULL,
+                file_name TEXT NOT NULL,
+                is_dir BOOLEAN DEFAULT FALSE,
+                file_size INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, file_path),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        ''')
+
+        # 创建收藏表索引
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_favorites_user
+            ON favorites(user_id, created_at DESC)
+        ''')
+
+        # 创建用户设置表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL UNIQUE,
+                theme TEXT DEFAULT 'light',
+                view_mode TEXT DEFAULT 'list',
+                items_per_page INTEGER DEFAULT 50,
+                auto_refresh BOOLEAN DEFAULT TRUE,
+                confirm_delete BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        ''')
+
         logger.info("数据库表结构初始化完成")
 
     # 插入默认数据
@@ -228,7 +265,7 @@ def _insert_default_data(db: Database):
             )
 
         # 创建默认管理员用户 (用户名: admin, 密码: admin123)
-        # 首次登录后建议修改密码
+        # 只在用户不存在时创建，不做后续检测
         password_hash = hash_password('admin123')
         cursor.execute(
             'INSERT OR IGNORE INTO users (username, password_hash, is_admin, force_password_change) VALUES (?, ?, ?, ?)',

@@ -10,8 +10,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
+import logging
 
 from app.core.config import settings
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 # 创建 FastAPI 应用
@@ -28,9 +36,10 @@ app = FastAPI(
 # CORS 中间件
 # =============================================================================
 
+# 开发环境允许所有源，生产环境使用配置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"],  # 允许所有源（包括手机端）
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,10 +50,23 @@ app.add_middleware(
 # 路由注册
 # =============================================================================
 
-from app.api import auth, files
+from app.api import auth, files, favorites, settings as settings_api
 
 app.include_router(auth.router)
 app.include_router(files.router)
+app.include_router(favorites.router)
+app.include_router(settings_api.router)
+
+
+# =============================================================================
+# 请求日志中间件
+# =============================================================================
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    """记录请求"""
+    response = await call_next(request)
+    return response
 
 
 # =============================================================================
@@ -72,6 +94,12 @@ async def root():
         "version": settings.VERSION,
         "description": settings.DESCRIPTION
     }
+
+
+@app.get("/test")
+async def test_endpoint():
+    """测试端点 - 验证请求是否能到达"""
+    return {"message": "测试成功", "status": "ok"}
 
 
 @app.get("/api/info")

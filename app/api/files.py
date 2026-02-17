@@ -42,6 +42,8 @@ async def list_files(
         List[FileInfo]: 文件列表
     """
     service = FileService(db)
+    # 记录目录查看操作
+    service.log_action(current_user.user_id, 'file_view', 'folder', path)
     return service.list_files(path)
 
 
@@ -212,3 +214,24 @@ async def search_files(
     """
     service = FileService(db)
     return service.search_files(query)
+
+
+@router.get("/recent")
+async def get_recent_files(
+    limit: int = Query(20, description="返回数量限制", ge=1, le=100),
+    current_user: TokenData = Depends(get_current_user),
+    db: Database = Depends(get_db)
+):
+    """
+    获取最近访问的文件
+
+    Args:
+        limit: 返回数量限制
+        current_user: 当前用户
+        db: 数据库实例
+
+    Returns:
+        List[dict]: 最近文件列表
+    """
+    service = FileService(db)
+    return service.get_recent_files(current_user.user_id, limit)

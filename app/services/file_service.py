@@ -296,3 +296,51 @@ class FileService:
         }
 
         return ext_map.get(path.suffix.lower())
+
+    def log_action(self, user_id: int, action: str, resource_type: str,
+                   resource_path: str, details: str = None) -> None:
+        """
+        记录操作日志
+
+        Args:
+            user_id: 用户ID
+            action: 操作类型 (file_view, file_upload, file_download, file_delete, file_rename, folder_create)
+            resource_type: 资源类型 (file, folder)
+            resource_path: 资源路径
+            details: 详细信息
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute('''
+                INSERT INTO logs (user_id, action, resource_type, details)
+                VALUES (?, ?, ?, ?)
+            ''', (user_id, action, resource_type, details or resource_path))
+
+    def get_recent_files(self, user_id: int, limit: int = 20) -> List[Dict]:
+        """
+        获取最近访问的文件
+
+        Args:
+            user_id: 用户ID
+            limit: 返回数量限制
+
+        Returns:
+            List[Dict]: 最近文件列表
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute('''
+                SELECT action, resource_type, details, created_at
+                FROM logs
+                WHERE user_id = ? AND action IN ('file_view', 'file_upload', 'file_download')
+                ORDER BY created_at DESC
+                LIMIT ?
+            ''', (user_id, limit))
+            rows = cursor.fetchall()
+            return [
+                {
+                    'action': r[0],
+                    'resource_type': r[1],
+                    'details': r[2],
+                    'created_at': r[3]
+                }
+                for r in rows
+            ]

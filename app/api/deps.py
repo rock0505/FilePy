@@ -23,24 +23,39 @@ security = HTTPBearer()
 # 数据库依赖
 # =============================================================================
 
+# 使用单例模式的数据库连接
+_db_instance = None
+
+
 def get_db() -> Generator[Database, None, None]:
     """
-    获取数据库连接
+    获取数据库连接（单例模式）
 
     Returns:
         Database: 数据库实例
     """
-    db = get_database()
+    global _db_instance
 
-    # 确保数据库已初始化
-    try:
-        init_database(db)
-    except Exception:
-        pass  # 可能已经初始化过
+    if _db_instance is None:
+        from app.core.config import settings
+        import os
+        from pathlib import Path
 
-    yield db
+        # 使用绝对路径
+        db_path = Path(__file__).parent.parent.parent / "filepy.db"
+        db_path = db_path.resolve()
 
-    db.close()
+        _db_instance = Database(str(db_path))
+
+        # 确保数据库已初始化
+        try:
+            init_database(_db_instance)
+        except Exception:
+            pass  # 可能已经初始化过
+
+    yield _db_instance
+
+    # 不关闭连接，保持单例
 
 
 # =============================================================================

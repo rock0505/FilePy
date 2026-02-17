@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FilePy - 智能文件管理</title>
+    <!-- Material Icons Outlined -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
     <style>
         /* ============================================
            CSS 变量 - Material Design 3 配色方案
@@ -125,6 +127,12 @@
             line-height: 1;
         }
 
+        /* Material Icons 样式 */
+        .material-icons-outlined {
+            font-size: inherit;
+            vertical-align: middle;
+        }
+
         /* ============================================
            登录界面
            ============================================ */
@@ -155,6 +163,12 @@
             font-size: 48px;
             color: var(--md-primary);
             margin-bottom: 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .login-header .logo-icon .material-icons-outlined {
+            font-size: 48px;
         }
 
         .login-header h4 {
@@ -271,6 +285,10 @@
             color: var(--md-primary);
         }
 
+        .header-brand .icon .material-icons-outlined {
+            font-size: 24px;
+        }
+
         .header-brand span:last-child {
             font-size: 20px;
             font-weight: 500;
@@ -301,6 +319,12 @@
 
         .search-box .icon {
             color: var(--md-on-surface-variant);
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-box .icon .material-icons-outlined {
             font-size: 18px;
         }
 
@@ -381,6 +405,112 @@
         .user-name {
             font-size: 14px;
             color: var(--md-on-surface);
+        }
+
+        /* 用户菜单下拉 */
+        .user-dropdown {
+            position: absolute;
+            top: 56px;
+            right: 16px;
+            min-width: 240px;
+            background: var(--md-surface);
+            border-radius: var(--md-radius-md);
+            box-shadow: var(--md-shadow-4);
+            padding: 8px 0;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all var(--md-duration-short) var(--md-easing-standard);
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+        }
+
+        .dropdown-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            font-size: 18px;
+        }
+
+        .dropdown-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .dropdown-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-on-surface);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .dropdown-email {
+            font-size: 12px;
+            color: var(--md-on-surface-variant);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: var(--md-outline-variant);
+            margin: 8px 0;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background var(--md-duration-short) var(--md-easing-standard);
+        }
+
+        .dropdown-item:hover {
+            background: var(--md-surface-variant);
+        }
+
+        .dropdown-item.danger {
+            color: var(--md-error);
+        }
+
+        .dropdown-item.danger:hover {
+            background: rgba(179, 38, 30, 0.08);
+        }
+
+        .dropdown-item .icon {
+            display: flex;
+            align-items: center;
+        }
+
+        .dropdown-item .icon .material-icons-outlined {
+            font-size: 20px;
+            color: var(--md-on-surface-variant);
+        }
+
+        .dropdown-item.danger .icon .material-icons-outlined {
+            color: var(--md-error);
         }
 
         /* ============================================
@@ -584,6 +714,12 @@
 
         .btn .icon {
             font-size: 18px;
+            display: flex;
+            align-items: center;
+        }
+
+        .btn .icon .material-icons-outlined {
+            font-size: 18px;
         }
 
         /* ============================================
@@ -663,6 +799,12 @@
 
         .list-item .file-icon .icon {
             font-size: 22px;
+            display: flex;
+            align-items: center;
+        }
+
+        .list-item .file-icon .icon .material-icons-outlined {
+            font-size: 22px;
         }
 
         .list-item .file-name {
@@ -731,6 +873,13 @@
         .grid-item .item-icon {
             font-size: 48px;
             margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .grid-item .item-icon .material-icons-outlined {
+            font-size: 48px;
         }
 
         .grid-item .item-name {
@@ -762,6 +911,13 @@
             font-size: 64px;
             opacity: 0.5;
             margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .empty-state .icon .material-icons-outlined {
+            font-size: 64px;
         }
 
         .empty-state p {
@@ -805,6 +961,12 @@
         .context-menu-item .icon {
             font-size: 18px;
             color: var(--md-on-surface-variant);
+            display: flex;
+            align-items: center;
+        }
+
+        .context-menu-item .icon .material-icons-outlined {
+            font-size: 18px;
         }
 
         .context-menu-item.danger {
@@ -904,6 +1066,134 @@
             gap: 8px;
         }
 
+        /* 设置对话框样式 */
+        .settings-container {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .settings-section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--md-outline-variant);
+        }
+
+        .settings-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .settings-section h4 {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-on-surface);
+            margin-bottom: 12px;
+        }
+
+        .setting-item {
+            margin-bottom: 12px;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 13px;
+            color: var(--md-on-surface-variant);
+            margin-bottom: 6px;
+        }
+
+        .setting-item select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--md-outline-variant);
+            border-radius: var(--md-radius-md);
+            background: var(--md-surface);
+            color: var(--md-on-surface);
+            font-size: 14px;
+        }
+
+        .setting-item select:focus {
+            outline: none;
+            border-color: var(--md-primary);
+            box-shadow: 0 0 0 2px var(--md-primary-container);
+        }
+
+        .setting-item input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--md-primary);
+            width: 16px;
+            height: 16px;
+            vertical-align: middle;
+        }
+
+        .setting-item input[type="checkbox"] + label {
+            display: inline;
+        }
+
+        /* 用户信息对话框样式 */
+        .user-info-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 0;
+        }
+
+        .user-info-avatar {
+            margin-bottom: 20px;
+        }
+
+        .user-info-avatar-circle {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 500;
+        }
+
+        .user-info-details {
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .user-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--md-outline-variant);
+        }
+
+        .user-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .user-info-label {
+            font-size: 13px;
+            color: var(--md-on-surface-variant);
+        }
+
+        .user-info-value {
+            font-size: 14px;
+            color: var(--md-on-surface);
+            font-weight: 500;
+        }
+
+        /* 修改密码对话框样式 */
+        .change-password-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 8px 0;
+        }
+
         /* ============================================
            通知 Toast
            ============================================ */
@@ -958,6 +1248,16 @@
 
         .toast .icon {
             font-size: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .toast .icon .material-icons-outlined {
+            font-size: 20px;
+        }
+
+        .toast-close .icon .material-icons-outlined {
+            font-size: 18px;
         }
 
         .toast-message {
@@ -972,10 +1272,21 @@
             cursor: pointer;
             padding: 4px;
             opacity: 0.7;
+            display: flex;
+            align-items: center;
         }
 
         .toast-close:hover {
             opacity: 1;
+        }
+
+        .toast-close .icon {
+            display: flex;
+            align-items: center;
+        }
+
+        .toast-close .icon .material-icons-outlined {
+            font-size: 18px;
         }
 
         /* ============================================
@@ -1021,6 +1332,13 @@
             font-size: 48px;
             color: var(--md-on-surface-variant);
             margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-zone .icon .material-icons-outlined {
+            font-size: 48px;
         }
 
         .upload-zone p {
@@ -1205,7 +1523,7 @@
     <div id="loginContainer" class="login-container">
         <div class="login-card">
             <div class="login-header">
-                <span class="icon logo-icon">📁</span>
+                <span class="icon logo-icon"><span class="material-icons-outlined">folder</span></span>
                 <h4>FilePy 文件服务器</h4>
                 <p>安全可靠的文件管理解决方案</p>
             </div>
@@ -1213,7 +1531,7 @@
                 <input type="text" class="login-input" id="username" placeholder="用户名" required>
                 <input type="password" class="login-input" id="password" placeholder="密码" required>
                 <button class="login-btn" onclick="login()">
-                    <span class="icon">🔐</span>
+                    <span class="icon"><span class="material-icons-outlined">login</span></span>
                     登录
                 </button>
                 <div class="login-message" id="loginMessage"></div>
@@ -1229,29 +1547,53 @@
                 <button class="icon-btn menu-toggle" onclick="toggleSidebar()">
                     <div class="hamburger"></div>
                 </button>
-                <span class="icon">📁</span>
+                <span class="icon"><span class="material-icons-outlined">folder</span></span>
                 <span>FilePy</span>
             </div>
             <div class="header-search">
                 <div class="search-box">
-                    <span class="icon">🔍</span>
+                    <span class="icon"><span class="material-icons-outlined">search</span></span>
                     <input type="text" id="headerSearchInput" placeholder="搜索文件..." onkeypress="if(event.key==='Enter'){searchFiles();}">
                 </div>
             </div>
             <div class="header-actions">
                 <button class="icon-btn" onclick="toggleTheme()" data-tooltip="切换主题">
-                    <span class="icon" id="themeIcon">🌙</span>
+                    <span class="icon" id="themeIcon"><span class="material-icons-outlined">dark_mode</span></span>
                 </button>
                 <button class="icon-btn" onclick="toggleView()" data-tooltip="切换视图">
-                    <span class="icon" id="viewIcon">⊞</span>
+                    <span class="icon" id="viewIcon"><span class="material-icons-outlined">view_list</span></span>
                 </button>
                 <button class="icon-btn" onclick="refreshFiles()" data-tooltip="刷新">
-                    <span class="icon">🔄</span>
+                    <span class="icon"><span class="material-icons-outlined">refresh</span></span>
                 </button>
                 <div class="user-menu" onclick="toggleUserMenu()">
                     <div class="user-avatar" id="userAvatar">A</div>
                     <span class="user-name" id="userName">管理员</span>
-                    <span class="icon">▼</span>
+                    <span class="icon"><span class="material-icons-outlined">expand_more</span></span>
+                </div>
+                <!-- 用户菜单下拉 -->
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="dropdown-header">
+                        <div class="dropdown-avatar" id="dropdownAvatar">A</div>
+                        <div class="dropdown-info">
+                            <div class="dropdown-name" id="dropdownName">管理员</div>
+                            <div class="dropdown-email" id="dropdownEmail">admin</div>
+                        </div>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item" onclick="showUserInfo()">
+                        <span class="icon"><span class="material-icons-outlined">person</span></span>
+                        <span>用户信息</span>
+                    </div>
+                    <div class="dropdown-item" onclick="showChangePassword()">
+                        <span class="icon"><span class="material-icons-outlined">lock</span></span>
+                        <span>修改密码</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item danger" onclick="logout()">
+                        <span class="icon"><span class="material-icons-outlined">logout</span></span>
+                        <span>退出登录</span>
+                    </div>
                 </div>
             </div>
         </header>
@@ -1263,15 +1605,15 @@
         <aside class="md-sidebar" id="sidebar">
             <nav class="sidebar-nav">
                 <a class="nav-item active" onclick="loadFiles()">
-                    <span class="icon">📁</span>
+                    <span class="icon"><span class="material-icons-outlined">folder</span></span>
                     <span>全部文件</span>
                 </a>
                 <a class="nav-item" onclick="showRecentFiles()">
-                    <span class="icon">🕐</span>
+                    <span class="icon"><span class="material-icons-outlined">schedule</span></span>
                     <span>最近</span>
                 </a>
                 <a class="nav-item" onclick="showStarredFiles()">
-                    <span class="icon">⭐</span>
+                    <span class="icon"><span class="material-icons-outlined">star</span></span>
                     <span>收藏</span>
                 </a>
             </nav>
@@ -1290,11 +1632,11 @@
             <div class="sidebar-divider"></div>
             <nav class="sidebar-nav">
                 <a class="nav-item" onclick="showSettings()">
-                    <span class="icon">⚙️</span>
+                    <span class="icon"><span class="material-icons-outlined">settings</span></span>
                     <span>设置</span>
                 </a>
                 <a class="nav-item" onclick="logout()">
-                    <span class="icon">🚪</span>
+                    <span class="icon"><span class="material-icons-outlined">logout</span></span>
                     <span>退出登录</span>
                 </a>
             </nav>
@@ -1304,9 +1646,12 @@
         <main class="md-main">
             <!-- Toolbar -->
             <div class="content-toolbar">
+                <button class="icon-btn" onclick="navigateUp()" data-tooltip="返回上一级" id="backButton" style="margin-right: 8px;">
+                    <span class="icon"><span class="material-icons-outlined">arrow_back</span></span>
+                </button>
                 <div class="breadcrumb" id="breadcrumb">
                     <a href="#" onclick="navigateTo('/')">
-                        <span class="icon">🏠</span>
+                        <span class="icon"><span class="material-icons-outlined">home</span></span>
                     </a>
                     <span class="separator">/</span>
                     <span class="current" id="currentPathName">全部文件</span>
@@ -1317,18 +1662,18 @@
                     全选
                 </label>
                 <button class="btn btn-primary" onclick="createNewFolder()">
-                    <span class="icon">📁+</span>
+                    <span class="icon"><span class="material-icons-outlined">create_new_folder</span></span>
                     <span>新建文件夹</span>
                 </button>
                 <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-                    <span class="icon">⬆️</span>
+                    <span class="icon"><span class="material-icons-outlined">upload</span></span>
                     <span>上传</span>
                 </button>
                 <button class="btn btn-danger" onclick="batchDelete()" id="batchDeleteBtn" style="display: none;">
-                    <span class="icon">🗑️</span>
+                    <span class="icon"><span class="material-icons-outlined">delete</span></span>
                 </button>
                 <button class="btn btn-tonal" onclick="batchDownload()" id="batchDownloadBtn" style="display: none;">
-                    <span class="icon">⬇️</span>
+                    <span class="icon"><span class="material-icons-outlined">download</span></span>
                 </button>
             </div>
 
@@ -1336,10 +1681,10 @@
             <div class="content-area">
                 <!-- Upload Zone -->
                 <div class="upload-zone" id="uploadZone">
-                    <span class="icon">☁️</span>
+                    <span class="icon"><span class="material-icons-outlined">cloud_upload</span></span>
                     <p>拖拽文件到此处上传，或点击下方按钮选择文件</p>
                     <button class="btn btn-tonal" onclick="document.getElementById('fileInput').click()">
-                        <span class="icon">📂</span>
+                        <span class="icon"><span class="material-icons-outlined">folder_open</span></span>
                         选择文件
                     </button>
                     <div id="selectedFileInfo" style="margin-top: 12px; color: var(--md-success); font-size: 13px;"></div>
@@ -1357,7 +1702,7 @@
                         </div>
                         <div class="list-body" id="fileList">
                             <div class="empty-state">
-                                <span class="icon">📭</span>
+                                <span class="icon"><span class="material-icons-outlined">inbox</span></span>
                                 <p>加载中...</p>
                             </div>
                         </div>
@@ -1371,20 +1716,24 @@
     <!-- 上下文菜单 -->
     <div class="context-menu" id="contextMenu">
         <div class="context-menu-item" onclick="contextMenuAction('open')">
-            <span class="icon">📂</span>
+            <span class="icon"><span class="material-icons-outlined">folder_open</span></span>
             打开
         </div>
         <div class="context-menu-item" onclick="contextMenuAction('download')">
-            <span class="icon">⬇️</span>
+            <span class="icon"><span class="material-icons-outlined">download</span></span>
             下载
         </div>
         <div class="context-menu-divider"></div>
+        <div class="context-menu-item" onclick="contextMenuAction('favorite')">
+            <span class="icon"><span class="material-icons-outlined">star</span></span>
+            收藏
+        </div>
         <div class="context-menu-item" onclick="contextMenuAction('rename')">
-            <span class="icon">✏️</span>
+            <span class="icon"><span class="material-icons-outlined">edit</span></span>
             重命名
         </div>
         <div class="context-menu-item danger" onclick="contextMenuAction('delete')">
-            <span class="icon">🗑️</span>
+            <span class="icon"><span class="material-icons-outlined">delete</span></span>
             删除
         </div>
     </div>
@@ -1427,58 +1776,58 @@
         // 文件类型图标映射
         // ============================================
         const FILE_TYPE_ICONS = {
-            folder: { icon: '📁', class: 'icon-folder' },
+            folder: { icon: 'folder', class: 'icon-folder' },
             // 图片
-            image: { icon: '🖼️', class: 'icon-image' },
-            img: { icon: '🖼️', class: 'icon-image' },
-            jpg: { icon: '🖼️', class: 'icon-image' },
-            jpeg: { icon: '🖼️', class: 'icon-image' },
-            png: { icon: '🖼️', class: 'icon-image' },
-            gif: { icon: '🖼️', class: 'icon-image' },
-            webp: { icon: '🖼️', class: 'icon-image' },
-            bmp: { icon: '🖼️', class: 'icon-image' },
-            svg: { icon: '🖼️', class: 'icon-image' },
+            image: { icon: 'image', class: 'icon-image' },
+            img: { icon: 'image', class: 'icon-image' },
+            jpg: { icon: 'image', class: 'icon-image' },
+            jpeg: { icon: 'image', class: 'icon-image' },
+            png: { icon: 'image', class: 'icon-image' },
+            gif: { icon: 'image', class: 'icon-image' },
+            webp: { icon: 'image', class: 'icon-image' },
+            bmp: { icon: 'image', class: 'icon-image' },
+            svg: { icon: 'image', class: 'icon-image' },
             // 视频
-            video: { icon: '🎬', class: 'icon-video' },
-            mp4: { icon: '🎬', class: 'icon-video' },
-            avi: { icon: '🎬', class: 'icon-video' },
-            mkv: { icon: '🎬', class: 'icon-video' },
-            mov: { icon: '🎬', class: 'icon-video' },
-            webm: { icon: '🎬', class: 'icon-video' },
+            video: { icon: 'movie', class: 'icon-video' },
+            mp4: { icon: 'movie', class: 'icon-video' },
+            avi: { icon: 'movie', class: 'icon-video' },
+            mkv: { icon: 'movie', class: 'icon-video' },
+            mov: { icon: 'movie', class: 'icon-video' },
+            webm: { icon: 'movie', class: 'icon-video' },
             // 音频
-            audio: { icon: '🎵', class: 'icon-audio' },
-            mp3: { icon: '🎵', class: 'icon-audio' },
-            wav: { icon: '🎵', class: 'icon-audio' },
-            flac: { icon: '🎵', class: 'icon-audio' },
-            ogg: { icon: '🎵', class: 'icon-audio' },
+            audio: { icon: 'audiotrack', class: 'icon-audio' },
+            mp3: { icon: 'audiotrack', class: 'icon-audio' },
+            wav: { icon: 'audiotrack', class: 'icon-audio' },
+            flac: { icon: 'audiotrack', class: 'icon-audio' },
+            ogg: { icon: 'audiotrack', class: 'icon-audio' },
             // 文档
-            document: { icon: '📄', class: 'icon-document' },
-            pdf: { icon: '📕', class: 'icon-document' },
-            doc: { icon: '📄', class: 'icon-document' },
-            docx: { icon: '📄', class: 'icon-document' },
-            txt: { icon: '📝', class: 'icon-document' },
-            xls: { icon: '📊', class: 'icon-document' },
-            xlsx: { icon: '📊', class: 'icon-document' },
-            ppt: { icon: '📊', class: 'icon-document' },
-            pptx: { icon: '📊', class: 'icon-document' },
+            document: { icon: 'description', class: 'icon-document' },
+            pdf: { icon: 'picture_as_pdf', class: 'icon-document' },
+            doc: { icon: 'description', class: 'icon-document' },
+            docx: { icon: 'description', class: 'icon-document' },
+            txt: { icon: 'text_snippet', class: 'icon-document' },
+            xls: { icon: 'table_view', class: 'icon-document' },
+            xlsx: { icon: 'table_view', class: 'icon-document' },
+            ppt: { icon: 'slideshow', class: 'icon-document' },
+            pptx: { icon: 'slideshow', class: 'icon-document' },
             // 压缩包
-            archive: { icon: '🗜️', class: 'icon-archive' },
-            zip: { icon: '🗜️', class: 'icon-archive' },
-            rar: { icon: '🗜️', class: 'icon-archive' },
-            '7z': { icon: '🗜️', class: 'icon-archive' },
-            tar: { icon: '🗜️', class: 'icon-archive' },
-            gz: { icon: '🗜️', class: 'icon-archive' },
+            archive: { icon: 'folder_zip', class: 'icon-archive' },
+            zip: { icon: 'folder_zip', class: 'icon-archive' },
+            rar: { icon: 'folder_zip', class: 'icon-archive' },
+            '7z': { icon: 'folder_zip', class: 'icon-archive' },
+            tar: { icon: 'folder_zip', class: 'icon-archive' },
+            gz: { icon: 'folder_zip', class: 'icon-archive' },
             // 代码
-            code: { icon: '💻', class: 'icon-code' },
-            js: { icon: '📜', class: 'icon-code' },
-            py: { icon: '🐍', class: 'icon-code' },
-            html: { icon: '🌐', class: 'icon-code' },
-            css: { icon: '🎨', class: 'icon-code' },
-            json: { icon: '📋', class: 'icon-code' },
-            xml: { icon: '📋', class: 'icon-code' },
-            md: { icon: '📋', class: 'icon-code' },
+            code: { icon: 'code', class: 'icon-code' },
+            js: { icon: 'javascript', class: 'icon-code' },
+            py: { icon: 'code', class: 'icon-code' },
+            html: { icon: 'code', class: 'icon-code' },
+            css: { icon: 'code', class: 'icon-code' },
+            json: { icon: 'data_object', class: 'icon-code' },
+            xml: { icon: 'data_object', class: 'icon-code' },
+            md: { icon: 'description', class: 'icon-code' },
             // 其他
-            default: { icon: '📄', class: 'icon-default' }
+            default: { icon: 'insert_drive_file', class: 'icon-default' }
         };
 
         function getFileTypeIcon(filename, isDir) {
@@ -1486,6 +1835,10 @@
 
             const ext = filename.split('.').pop().toLowerCase();
             return FILE_TYPE_ICONS[ext] || FILE_TYPE_ICONS.default;
+        }
+
+        function getIconHtml(iconData) {
+            return `<span class="material-icons-outlined ${iconData.class}">${iconData.icon}</span>`;
         }
 
         // ============================================
@@ -1525,6 +1878,15 @@
             document.addEventListener('click', function(e) {
                 if (!e.target.closest('.context-menu')) {
                     hideContextMenu();
+                }
+            });
+
+            // 监听浏览器后退/前进按钮
+            window.addEventListener('popstate', function(e) {
+                if (e.state && e.state.path) {
+                    loadFiles(e.state.path, false);
+                } else {
+                    loadFiles('/', false);
                 }
             });
         };
@@ -1608,8 +1970,12 @@
 
         function updateUserDisplay() {
             if (currentUser) {
-                document.getElementById('userAvatar').textContent = currentUser.username.charAt(0).toUpperCase();
+                const avatar = currentUser.username.charAt(0).toUpperCase();
+                document.getElementById('userAvatar').textContent = avatar;
                 document.getElementById('userName').textContent = currentUser.username;
+                document.getElementById('dropdownAvatar').textContent = avatar;
+                document.getElementById('dropdownName').textContent = currentUser.username;
+                document.getElementById('dropdownEmail').textContent = currentUser.email || currentUser.username;
             }
         }
 
@@ -1624,8 +1990,8 @@
         }
 
         function updateThemeIcon() {
-            const icon = document.getElementById('themeIcon');
-            icon.textContent = currentTheme === 'light' ? '🌙' : '☀️';
+            const iconEl = document.querySelector('#themeIcon .material-icons-outlined');
+            iconEl.textContent = currentTheme === 'light' ? 'dark_mode' : 'light_mode';
         }
 
         // ============================================
@@ -1635,7 +2001,8 @@
             currentView = currentView === 'list' ? 'grid' : 'list';
             document.getElementById('listView').style.display = currentView === 'list' ? 'block' : 'none';
             document.getElementById('gridView').style.display = currentView === 'grid' ? 'grid' : 'none';
-            document.getElementById('viewIcon').textContent = currentView === 'list' ? '⊞' : '☰';
+            const iconEl = document.querySelector('#viewIcon .material-icons-outlined');
+            iconEl.textContent = currentView === 'list' ? 'view_list' : 'grid_view';
             displayFiles(allFiles);
         }
 
@@ -1655,13 +2022,14 @@
         // ============================================
         // 文件加载与显示
         // ============================================
-        async function loadFiles(path = null) {
+        async function loadFiles(path = null, pushState = true) {
             if (!authToken) {
                 showToast('请先登录', 'error');
                 return;
             }
 
             const targetPath = path !== null ? path : currentPath;
+            const previousPath = currentPath;
 
             try {
                 const response = await fetch(`/files?path=${encodeURIComponent(targetPath)}`, {
@@ -1674,6 +2042,11 @@
                     currentPath = targetPath;
                     updateBreadcrumb();
                     displayFiles(files);
+
+                    // 更新浏览器历史记录（仅在路径实际改变时）
+                    if (pushState && targetPath !== previousPath) {
+                        history.pushState({ path: targetPath }, '', `#path=${encodeURIComponent(targetPath)}`);
+                    }
                 } else {
                     showToast('加载文件列表失败', 'error');
                 }
@@ -1689,7 +2062,7 @@
             if (!files || files.length === 0) {
                 const emptyHtml = `
                     <div class="empty-state">
-                        <span class="icon">📭</span>
+                        <span class="icon"><span class="material-icons-outlined">inbox</span></span>
                         <p>没有文件</p>
                     </div>
                 `;
@@ -1716,17 +2089,20 @@
                                    onchange="updateBatchButtons()">
                         </div>
                         <div class="file-icon">
-                            <span class="icon ${icon.class}">${icon.icon}</span>
+                            <span class="icon ${icon.class}">${getIconHtml(icon)}</span>
                             <span class="file-name">${file.name}</span>
                         </div>
                         <span class="file-size">${size}</span>
                         <span class="file-date">${date}</span>
                         <div class="file-actions">
+                            <button class="icon-btn" onclick="event.stopPropagation(); toggleFavorite('${file.path}', '${file.name.replace(/'/g, "\\'")}', ${file.is_dir})" data-tooltip="收藏">
+                                <span class="icon"><span class="material-icons-outlined">star_border</span></span>
+                            </button>
                             <button class="icon-btn" onclick="event.stopPropagation(); renameFile('${file.path}', '${file.name.replace(/'/g, "\\'")}')" data-tooltip="重命名">
-                                <span class="icon">✏️</span>
+                                <span class="icon"><span class="material-icons-outlined">edit</span></span>
                             </button>
                             <button class="icon-btn" onclick="event.stopPropagation(); deleteFile('${file.path}')" data-tooltip="删除">
-                                <span class="icon">🗑️</span>
+                                <span class="icon"><span class="material-icons-outlined">delete</span></span>
                             </button>
                         </div>
                     </div>
@@ -1749,7 +2125,7 @@
                                    data-is-dir="${file.is_dir}"
                                    onchange="updateBatchButtons()">
                         </div>
-                        <span class="icon item-icon ${icon.class}">${icon.icon}</span>
+                        <span class="icon item-icon ${icon.class}">${getIconHtml(icon)}</span>
                         <span class="item-name">${file.name}</span>
                         <span class="item-meta">${size}</span>
                     </div>
@@ -1759,11 +2135,15 @@
 
         function updateBreadcrumb() {
             const currentPathName = document.getElementById('currentPathName');
+            const backButton = document.getElementById('backButton');
+
             if (currentPath === '/') {
                 currentPathName.textContent = '全部文件';
+                backButton.style.display = 'none';
             } else {
                 const parts = currentPath.split('/').filter(p => p);
                 currentPathName.textContent = parts[parts.length - 1] || '全部文件';
+                backButton.style.display = 'flex';
             }
         }
 
@@ -1783,6 +2163,14 @@
 
         function navigateTo(path) {
             loadFiles(path);
+        }
+
+        function navigateUp() {
+            if (currentPath === '/') return;
+            const pathParts = currentPath.split('/').filter(p => p);
+            pathParts.pop();
+            const parentPath = pathParts.length > 0 ? '/' + pathParts.join('/') : '/';
+            loadFiles(parentPath);
         }
 
         function refreshFiles() {
@@ -2171,6 +2559,9 @@
                         showToast('不支持下载目录', 'error');
                     }
                     break;
+                case 'favorite':
+                    toggleFavorite(path, fileName, isDir);
+                    break;
                 case 'rename':
                     renameFile(path, fileName);
                     break;
@@ -2185,13 +2576,29 @@
         // ============================================
         // 对话框
         // ============================================
-        function showModal(title, bodyHtml, onConfirm) {
+        function showModal(title, bodyHtml, onConfirm, showCancelButton = true) {
             document.getElementById('modalTitle').textContent = title;
             document.getElementById('modalBody').innerHTML = bodyHtml;
-            document.getElementById('modalOverlay').classList.add('show');
 
+            const cancelBtn = document.querySelector('#modalFooter .btn-tonal');
             const confirmBtn = document.getElementById('modalConfirm');
-            confirmBtn.onclick = onConfirm;
+
+            if (showCancelButton) {
+                cancelBtn.style.display = 'block';
+                confirmBtn.textContent = '确认';
+            } else {
+                cancelBtn.style.display = 'none';
+                confirmBtn.textContent = '确定';
+            }
+
+            if (onConfirm) {
+                confirmBtn.onclick = onConfirm;
+                confirmBtn.style.display = 'block';
+            } else {
+                confirmBtn.style.display = 'none';
+            }
+
+            document.getElementById('modalOverlay').classList.add('show');
         }
 
         function closeModal() {
@@ -2207,16 +2614,16 @@
             toast.className = `toast ${type}`;
 
             const iconMap = {
-                success: '✓',
-                error: '✕',
-                info: 'ℹ'
+                success: 'check_circle',
+                error: 'error',
+                info: 'info'
             };
 
             toast.innerHTML = `
-                <span class="icon">${iconMap[type] || iconMap.info}</span>
+                <span class="icon"><span class="material-icons-outlined">${iconMap[type] || iconMap.info}</span></span>
                 <span class="toast-message">${message}</span>
                 <button class="toast-close" onclick="this.parentElement.remove()">
-                    <span class="icon">✕</span>
+                    <span class="icon"><span class="material-icons-outlined">close</span></span>
                 </button>
             `;
 
@@ -2230,20 +2637,398 @@
         // ============================================
         // 导航占位函数
         // ============================================
-        function showRecentFiles() {
-            showToast('最近文件功能开发中', 'info');
+        // 最近文件功能
+        async function showRecentFiles() {
+            if (!authToken) {
+                showToast('请先登录', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/files/recent?limit=50', {
+                    headers: {'Authorization': `Bearer ${authToken}`}
+                });
+
+                if (response.ok) {
+                    const recent = await response.json();
+                    // 显示最近文件信息
+                    displayRecentFiles(recent);
+                } else {
+                    showToast('加载最近文件失败', 'error');
+                }
+            } catch (error) {
+                showToast('加载最近文件失败: ' + error.message, 'error');
+            }
         }
 
-        function showStarredFiles() {
-            showToast('收藏功能开发中', 'info');
+        function displayRecentFiles(recent) {
+            const listElement = document.getElementById('fileList');
+            const gridElement = document.getElementById('gridView');
+
+            if (!recent || recent.length === 0) {
+                const emptyHtml = `
+                    <div class="empty-state">
+                        <span class="icon"><span class="material-icons-outlined">history</span></span>
+                        <p>暂无最近访问记录</p>
+                    </div>
+                `;
+                listElement.innerHTML = emptyHtml;
+                gridElement.innerHTML = emptyHtml;
+                return;
+            }
+
+            // 转换为文件列表格式并显示
+            const files = recent.map(r => {
+                const path = r.details || '';
+                const name = path.split('/').pop() || '未知';
+                return {
+                    name: name,
+                    path: path,
+                    is_dir: false,
+                    size: null,
+                    modified: r.created_at
+                };
+            });
+
+            displayFiles(files);
+
+            // 更新面包屑
+            document.getElementById('currentPathName').textContent = '最近访问';
         }
 
-        function showSettings() {
-            showToast('设置功能开发中', 'info');
+        // 收藏功能
+        async function showStarredFiles() {
+            if (!authToken) {
+                showToast('请先登录', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/files/favorites', {
+                    headers: {'Authorization': `Bearer ${authToken}`}
+                });
+
+                if (response.ok) {
+                    const favorites = await response.json();
+                    const files = favorites.map(f => ({
+                        name: f.file_name,
+                        path: f.file_path,
+                        is_dir: f.is_dir,
+                        size: f.file_size
+                    }));
+                    displayFiles(files);
+                    document.getElementById('currentPathName').textContent = '我的收藏';
+                } else {
+                    showToast('加载收藏失败', 'error');
+                }
+            } catch (error) {
+                showToast('加载收藏失败: ' + error.message, 'error');
+            }
+        }
+
+        async function toggleFavorite(filePath, fileName, isDir) {
+            if (!authToken) {
+                showToast('请先登录', 'error');
+                return;
+            }
+
+            try {
+                // 先检查是否已收藏
+                const checkResponse = await fetch(`/files/favorites/check/${encodeURIComponent(filePath)}`, {
+                    headers: {'Authorization': `Bearer ${authToken}`}
+                });
+                const checkData = await checkResponse.json();
+
+                if (checkData.is_favorite) {
+                    // 取消收藏
+                    await fetch(`/files/favorites/${encodeURIComponent(filePath)}`, {
+                        method: 'DELETE',
+                        headers: {'Authorization': `Bearer ${authToken}`}
+                    });
+                    showToast('已取消收藏', 'info');
+                } else {
+                    // 添加收藏
+                    await fetch('/files/favorites', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            file_path: filePath,
+                            file_name: fileName,
+                            is_dir: isDir
+                        })
+                    });
+                    showToast('已添加收藏', 'success');
+                }
+            } catch (error) {
+                showToast('操作失败: ' + error.message, 'error');
+            }
+        }
+
+        // 设置功能
+        async function showSettings() {
+            if (!authToken) {
+                showToast('请先登录', 'error');
+                return;
+            }
+
+            // 显示设置对话框
+            showModal('设置', `
+                <div class="settings-container">
+                    <div class="settings-section">
+                        <h4>显示设置</h4>
+                        <div class="setting-item">
+                            <label>主题</label>
+                            <select id="settingTheme">
+                                <option value="light">浅色</option>
+                                <option value="dark">深色</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label>视图模式</label>
+                            <select id="settingViewMode">
+                                <option value="list">列表</option>
+                                <option value="grid">网格</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h4>其他设置</h4>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="settingAutoRefresh" checked>
+                                上传后自动刷新
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="settingConfirmDelete" checked>
+                                删除前确认
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h4>存储信息</h4>
+                        <div id="storageInfoDisplay">加载中...</div>
+                    </div>
+                </div>
+            `, async () => {
+                const settings = {
+                    theme: document.getElementById('settingTheme').value,
+                    view_mode: document.getElementById('settingViewMode').value,
+                    auto_refresh: document.getElementById('settingAutoRefresh').checked,
+                    confirm_delete: document.getElementById('settingConfirmDelete').checked
+                };
+
+                try {
+                    const response = await fetch('/user/settings', {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(settings)
+                    });
+
+                    if (response.ok) {
+                        showToast('设置保存成功', 'success');
+                        closeModal();
+                        // 应用主题设置
+                        if (settings.theme !== currentTheme) {
+                            currentTheme = settings.theme;
+                            document.documentElement.setAttribute('data-theme', currentTheme);
+                            localStorage.setItem('filepy_theme', currentTheme);
+                            updateThemeIcon();
+                        }
+                    } else {
+                        showToast('设置保存失败', 'error');
+                    }
+                } catch (error) {
+                    showToast('设置保存失败: ' + error.message, 'error');
+                }
+            });
+
+            // 加载当前设置
+            loadCurrentSettings();
+        }
+
+        async function loadCurrentSettings() {
+            try {
+                const response = await fetch('/user/settings', {
+                    headers: {'Authorization': `Bearer ${authToken}`}
+                });
+                if (response.ok) {
+                    const settings = await response.json();
+                    document.getElementById('settingTheme').value = settings.theme;
+                    document.getElementById('settingViewMode').value = settings.view_mode;
+                    document.getElementById('settingAutoRefresh').checked = settings.auto_refresh;
+                    document.getElementById('settingConfirmDelete').checked = settings.confirm_delete;
+                }
+            } catch (error) {
+                console.error('加载设置失败:', error);
+            }
+
+            // 加载存储信息
+            loadStorageInfo();
+        }
+
+        async function loadStorageInfo() {
+            try {
+                const response = await fetch('/user/storage');
+                if (response.ok) {
+                    const info = await response.json();
+                    const usedGB = (info.used_space / 1024 / 1024 / 1024).toFixed(2);
+                    const totalGB = (info.total_space / 1024 / 1024 / 1024).toFixed(2);
+                    document.getElementById('storageInfoDisplay').innerHTML = `
+                        <p>已用: ${usedGB} GB / ${totalGB} GB</p>
+                        <p>文件数: ${info.file_count}</p>
+                        <p>文件夹数: ${info.folder_count}</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('加载存储信息失败:', error);
+            }
         }
 
         function toggleUserMenu() {
-            showToast('用户菜单开发中', 'info');
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        function closeUserMenu() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.remove('show');
+        }
+
+        // 点击外部关闭用户菜单
+        document.addEventListener('click', function(e) {
+            const userMenu = document.querySelector('.user-menu');
+            const dropdown = document.getElementById('userDropdown');
+            if (!userMenu.contains(e.target) && !dropdown.contains(e.target)) {
+                closeUserMenu();
+            }
+        });
+
+        // 显示用户信息
+        async function showUserInfo() {
+            closeUserMenu();
+
+            if (!authToken) {
+                showToast('请先登录', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/auth/me', {
+                    headers: {'Authorization': `Bearer ${authToken}`}
+                });
+
+                if (response.ok) {
+                    const user = await response.json();
+                    showModal('用户信息', `
+                        <div class="user-info-container">
+                            <div class="user-info-avatar">
+                                <div class="user-info-avatar-circle">${user.username.charAt(0).toUpperCase()}</div>
+                            </div>
+                            <div class="user-info-details">
+                                <div class="user-info-row">
+                                    <span class="user-info-label">用户名</span>
+                                    <span class="user-info-value">${user.username}</span>
+                                </div>
+                                <div class="user-info-row">
+                                    <span class="user-info-label">邮箱</span>
+                                    <span class="user-info-value">${user.email || '未设置'}</span>
+                                </div>
+                                <div class="user-info-row">
+                                    <span class="user-info-label">角色</span>
+                                    <span class="user-info-value">${user.is_admin ? '管理员' : '普通用户'}</span>
+                                </div>
+                                <div class="user-info-row">
+                                    <span class="user-info-label">注册时间</span>
+                                    <span class="user-info-value">${user.created_at ? new Date(user.created_at).toLocaleDateString() : '未知'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `, null, true); // 只显示确定按钮
+                } else {
+                    showToast('获取用户信息失败', 'error');
+                }
+            } catch (error) {
+                showToast('获取用户信息失败: ' + error.message, 'error');
+            }
+        }
+
+        // 修改密码
+        async function showChangePassword() {
+            closeUserMenu();
+
+            if (!authToken) {
+                showToast('请先登录', 'error');
+                return;
+            }
+
+            showModal('修改密码', `
+                <div class="change-password-container">
+                    <div class="input-group">
+                        <label>原密码</label>
+                        <input type="password" id="oldPassword" class="modal-input" placeholder="请输入原密码">
+                    </div>
+                    <div class="input-group">
+                        <label>新密码</label>
+                        <input type="password" id="newPassword" class="modal-input" placeholder="请输入新密码（至少6位）">
+                    </div>
+                    <div class="input-group">
+                        <label>确认新密码</label>
+                        <input type="password" id="confirmPassword" class="modal-input" placeholder="请再次输入新密码">
+                    </div>
+                </div>
+            `, async () => {
+                const oldPassword = document.getElementById('oldPassword').value;
+                const newPassword = document.getElementById('newPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+
+                if (!oldPassword || !newPassword || !confirmPassword) {
+                    showToast('请填写所有字段', 'error');
+                    return;
+                }
+
+                if (newPassword.length < 6) {
+                    showToast('新密码长度至少为6位', 'error');
+                    return;
+                }
+
+                if (newPassword !== confirmPassword) {
+                    showToast('两次输入的新密码不一致', 'error');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/auth/change-password', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            old_password: oldPassword,
+                            new_password: newPassword
+                        })
+                    });
+
+                    if (response.ok) {
+                        showToast('密码修改成功，请重新登录', 'success');
+                        closeModal();
+                        logout();
+                    } else {
+                        const error = await response.json();
+                        showToast('修改密码失败: ' + error.detail, 'error');
+                    }
+                } catch (error) {
+                    showToast('修改密码失败: ' + error.message, 'error');
+                }
+            });
         }
 
         // ============================================
