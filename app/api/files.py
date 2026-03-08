@@ -12,13 +12,7 @@ from app.core.database import Database
 from app.api.deps import get_db, get_current_user
 from app.models.auth import TokenData
 from app.services.file_service import FileService
-from app.models.file import (
-    FileInfo,
-    FileRename,
-    FolderCreate,
-    BatchDelete,
-    SearchQuery
-)
+from app.models.file import FileInfo, FileRename, FolderCreate, BatchDelete, SearchQuery
 
 
 router = APIRouter(prefix="/files", tags=["文件"])
@@ -28,7 +22,7 @@ router = APIRouter(prefix="/files", tags=["文件"])
 async def list_files(
     path: str = Query("/", description="目录路径"),
     current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ):
     """
     列出目录下的文件
@@ -43,7 +37,7 @@ async def list_files(
     """
     service = FileService(db)
     # 记录目录查看操作
-    service.log_action(current_user.user_id, 'file_view', 'folder', path)
+    service.log_action(current_user.user_id, "file_view", "folder", path)
     return service.list_files(path)
 
 
@@ -51,7 +45,7 @@ async def list_files(
 async def create_folder(
     folder_data: FolderCreate,
     current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ):
     """
     创建目录
@@ -69,17 +63,14 @@ async def create_folder(
     try:
         return service.create_folder(folder_data)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/rename")
 async def rename_file(
     rename_data: FileRename,
     current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ):
     """
     重命名文件或目录
@@ -98,8 +89,7 @@ async def rename_file(
 
     if not success:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="重命名失败"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="重命名失败"
         )
 
     return {"message": "重命名成功"}
@@ -109,7 +99,7 @@ async def rename_file(
 async def delete_file(
     file_path: str,
     current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ):
     """
     删除文件或目录
@@ -127,10 +117,7 @@ async def delete_file(
     success = service.delete_file(file_path)
 
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="文件不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
 
     return {"message": "删除成功"}
 
@@ -139,7 +126,7 @@ async def delete_file(
 async def batch_delete_files(
     delete_data: BatchDelete,
     current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ):
     """
     批量删除文件
@@ -160,7 +147,7 @@ async def batch_delete_files(
 async def download_file(
     file_path: str,
     current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ):
     """
     下载文件
@@ -177,21 +164,17 @@ async def download_file(
     full_path = service.get_file_path(file_path)
 
     if not full_path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="文件不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
 
     if full_path.is_dir():
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="无法下载目录"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="无法下载目录"
         )
 
     return FileResponse(
         path=str(full_path),
         filename=full_path.name,
-        media_type='application/octet-stream'
+        media_type="application/octet-stream",
     )
 
 
@@ -199,7 +182,7 @@ async def download_file(
 async def search_files(
     query: SearchQuery,
     current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ):
     """
     搜索文件
@@ -220,7 +203,7 @@ async def search_files(
 async def get_recent_files(
     limit: int = Query(20, description="返回数量限制", ge=1, le=100),
     current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ):
     """
     获取最近访问的文件

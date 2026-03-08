@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 class UserSettingsUpdate(BaseModel):
     """用户设置更新请求"""
+
     theme: str = None
     view_mode: str = None
     items_per_page: int = None
@@ -17,6 +18,7 @@ class UserSettingsUpdate(BaseModel):
 
 class UserSettingsResponse(BaseModel):
     """用户设置响应"""
+
     theme: str
     view_mode: str
     items_per_page: int
@@ -26,6 +28,7 @@ class UserSettingsResponse(BaseModel):
 
 class StorageInfo(BaseModel):
     """存储信息响应"""
+
     used_space: int
     total_space: int
     file_count: int

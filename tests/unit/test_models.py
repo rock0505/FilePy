@@ -9,7 +9,7 @@ from app.models.user import (
     UserLogin,
     UserUpdate,
     UserResponse,
-    PasswordChange
+    PasswordChange,
 )
 
 
@@ -19,9 +19,7 @@ class TestUserCreate:
     def test_valid_user_create(self):
         """测试有效的用户创建"""
         user = UserCreate(
-            username="testuser",
-            password="password123",
-            email="test@example.com"
+            username="testuser", password="password123", email="test@example.com"
         )
 
         assert user.username == "testuser"
@@ -30,10 +28,7 @@ class TestUserCreate:
 
     def test_user_create_without_email(self):
         """测试没有邮箱的用户创建"""
-        user = UserCreate(
-            username="testuser",
-            password="password123"
-        )
+        user = UserCreate(username="testuser", password="password123")
 
         assert user.username == "testuser"
         assert user.email is None
@@ -41,26 +36,18 @@ class TestUserCreate:
     def test_username_too_short(self):
         """测试用户名太短"""
         with pytest.raises(Exception):
-            UserCreate(
-                username="ab",  # 少于 3 个字符
-                password="password123"
-            )
+            UserCreate(username="ab", password="password123")  # 少于 3 个字符
 
     def test_password_too_short(self):
         """测试密码太短"""
         with pytest.raises(Exception):
-            UserCreate(
-                username="testuser",
-                password="12345"  # 少于 6 个字符
-            )
+            UserCreate(username="testuser", password="12345")  # 少于 6 个字符
 
     def test_invalid_email(self):
         """测试无效邮箱"""
         with pytest.raises(Exception):
             UserCreate(
-                username="testuser",
-                password="password123",
-                email="invalid-email"
+                username="testuser", password="password123", email="invalid-email"
             )
 
 
@@ -69,10 +56,7 @@ class TestUserLogin:
 
     def test_valid_login(self):
         """测试有效的登录"""
-        login = UserLogin(
-            username="testuser",
-            password="password123"
-        )
+        login = UserLogin(username="testuser", password="password123")
 
         assert login.username == "testuser"
         assert login.password == "password123"
@@ -97,10 +81,7 @@ class TestUserUpdate:
 
     def test_update_both(self):
         """测试同时更新邮箱和密码"""
-        update = UserUpdate(
-            email="new@example.com",
-            password="newpassword123"
-        )
+        update = UserUpdate(email="new@example.com", password="newpassword123")
 
         assert update.email == "new@example.com"
         assert update.password == "newpassword123"
@@ -111,10 +92,7 @@ class TestPasswordChange:
 
     def test_valid_password_change(self):
         """测试有效的密码修改"""
-        change = PasswordChange(
-            old_password="oldpass123",
-            new_password="newpass123"
-        )
+        change = PasswordChange(old_password="oldpass123", new_password="newpass123")
 
         assert change.old_password == "oldpass123"
         assert change.new_password == "newpass123"
@@ -123,8 +101,7 @@ class TestPasswordChange:
         """测试新密码太短"""
         with pytest.raises(Exception):
             PasswordChange(
-                old_password="oldpass123",
-                new_password="short"  # 少于 6 个字符
+                old_password="oldpass123", new_password="short"  # 少于 6 个字符
             )
 
 
@@ -139,7 +116,7 @@ class TestUserResponse:
             "email": "test@example.com",
             "is_admin": False,
             "force_password_change": False,
-            "created_at": "2024-01-01T00:00:00"
+            "created_at": "2024-01-01T00:00:00",
         }
 
         user = UserResponse(**data)
@@ -158,7 +135,7 @@ class TestUserResponse:
             "email": "admin@example.com",
             "is_admin": True,
             "force_password_change": True,
-            "created_at": None
+            "created_at": None,
         }
 
         user = UserResponse(**data)

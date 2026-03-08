@@ -11,7 +11,7 @@ from .security import (
     hash_password,
     create_access_token,
     decode_access_token,
-    pwd_context
+    pwd_context,
 )
 
 __all__ = [

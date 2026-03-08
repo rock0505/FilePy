@@ -11,7 +11,7 @@ from app.core.security import (
     create_access_token,
     decode_access_token,
     is_token_expired,
-    pwd_context
+    pwd_context,
 )
 
 
@@ -72,11 +72,7 @@ class TestJWTTokens:
 
     def test_create_token(self):
         """测试 Token 创建"""
-        data = {
-            "user_id": 1,
-            "username": "testuser",
-            "is_admin": False
-        }
+        data = {"user_id": 1, "username": "testuser", "is_admin": False}
 
         token = create_access_token(data)
 
@@ -86,11 +82,7 @@ class TestJWTTokens:
 
     def test_decode_token(self):
         """测试 Token 解码"""
-        data = {
-            "user_id": 123,
-            "username": "admin",
-            "is_admin": True
-        }
+        data = {"user_id": 123, "username": "admin", "is_admin": True}
 
         token = create_access_token(data)
         decoded = decode_access_token(token)
@@ -114,8 +106,7 @@ class TestJWTTokens:
 
         # 创建一个立即过期的 Token
         token = create_access_token(
-            data,
-            expires_delta=timedelta(seconds=-1)  # 已经过期
+            data, expires_delta=timedelta(seconds=-1)  # 已经过期
         )
 
         decoded = decode_access_token(token)
@@ -128,10 +119,7 @@ class TestJWTTokens:
         data = {"user_id": 1}
 
         # 创建 2 小时后过期的 Token
-        token = create_access_token(
-            data,
-            expires_delta=timedelta(hours=2)
-        )
+        token = create_access_token(data, expires_delta=timedelta(hours=2))
 
         decoded = decode_access_token(token)
 
@@ -153,10 +141,7 @@ class TestJWTTokens:
     def test_is_token_expired_expired(self):
         """测试过期 Token"""
         data = {"user_id": 1}
-        token = create_access_token(
-            data,
-            expires_delta=timedelta(seconds=-1)
-        )
+        token = create_access_token(data, expires_delta=timedelta(seconds=-1))
 
         assert is_token_expired(token) is True
 

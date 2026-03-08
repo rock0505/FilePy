@@ -23,8 +23,14 @@ class FavoriteService:
         """
         self.db = db
 
-    def add_favorite(self, user_id: int, file_path: str, file_name: str,
-                     is_dir: bool = False, file_size: int = None) -> bool:
+    def add_favorite(
+        self,
+        user_id: int,
+        file_path: str,
+        file_name: str,
+        is_dir: bool = False,
+        file_size: int = None,
+    ) -> bool:
         """
         添加收藏
 
@@ -39,11 +45,14 @@ class FavoriteService:
             bool: 是否添加成功
         """
         with self.db.get_cursor() as cursor:
-            cursor.execute('''
+            cursor.execute(
+                """
                 INSERT OR IGNORE INTO favorites
                 (user_id, file_path, file_name, is_dir, file_size)
                 VALUES (?, ?, ?, ?, ?)
-            ''', (user_id, file_path, file_name, is_dir, file_size))
+            """,
+                (user_id, file_path, file_name, is_dir, file_size),
+            )
         logger.info(f"用户 {user_id} 收藏了 {file_path}")
         return True
 
@@ -59,10 +68,13 @@ class FavoriteService:
             bool: 是否取消成功
         """
         with self.db.get_cursor() as cursor:
-            cursor.execute('''
+            cursor.execute(
+                """
                 DELETE FROM favorites
                 WHERE user_id = ? AND file_path = ?
-            ''', (user_id, file_path))
+            """,
+                (user_id, file_path),
+            )
         logger.info(f"用户 {user_id} 取消收藏 {file_path}")
         return True
 
@@ -78,10 +90,13 @@ class FavoriteService:
             bool: 是否已收藏
         """
         with self.db.get_cursor() as cursor:
-            cursor.execute('''
+            cursor.execute(
+                """
                 SELECT id FROM favorites
                 WHERE user_id = ? AND file_path = ?
-            ''', (user_id, file_path))
+            """,
+                (user_id, file_path),
+            )
             return cursor.fetchone() is not None
 
     def list_favorites(self, user_id: int) -> List[Dict[str, Any]]:
@@ -95,21 +110,24 @@ class FavoriteService:
             List[Dict]: 收藏列表
         """
         with self.db.get_cursor() as cursor:
-            cursor.execute('''
+            cursor.execute(
+                """
                 SELECT id, file_path, file_name, is_dir, file_size, created_at
                 FROM favorites
                 WHERE user_id = ?
                 ORDER BY created_at DESC
-            ''', (user_id,))
+            """,
+                (user_id,),
+            )
             rows = cursor.fetchall()
             return [
                 {
-                    'id': r[0],
-                    'file_path': r[1],
-                    'file_name': r[2],
-                    'is_dir': r[3],
-                    'file_size': r[4],
-                    'created_at': r[5]
+                    "id": r[0],
+                    "file_path": r[1],
+                    "file_name": r[2],
+                    "is_dir": r[3],
+                    "file_size": r[4],
+                    "created_at": r[5],
                 }
                 for r in rows
             ]

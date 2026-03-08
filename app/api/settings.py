@@ -8,7 +8,11 @@ from fastapi import APIRouter, Depends
 from app.core.database import Database
 from app.api.deps import get_db, get_current_user
 from app.models.auth import TokenData
-from app.models.user_settings import UserSettingsUpdate, UserSettingsResponse, StorageInfo
+from app.models.user_settings import (
+    UserSettingsUpdate,
+    UserSettingsResponse,
+    StorageInfo,
+)
 from app.services.settings_service import SettingsService
 
 
@@ -17,8 +21,7 @@ router = APIRouter(prefix="/user", tags=["用户设置"])
 
 @router.get("/settings", response_model=UserSettingsResponse)
 async def get_settings(
-    current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    current_user: TokenData = Depends(get_current_user), db: Database = Depends(get_db)
 ):
     """
     获取用户设置
@@ -39,7 +42,7 @@ async def get_settings(
 async def update_settings(
     settings: UserSettingsUpdate,
     current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ):
     """
     更新用户设置
@@ -59,9 +62,7 @@ async def update_settings(
 
 
 @router.get("/storage", response_model=StorageInfo)
-async def get_storage_info(
-    db: Database = Depends(get_db)
-):
+async def get_storage_info(db: Database = Depends(get_db)):
     """
     获取存储信息
 

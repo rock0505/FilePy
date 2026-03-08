@@ -17,7 +17,10 @@ class TestPathUtils:
         path1 = Path("/home")
         path2 = Path("user", "documents")
         result = path1 / path2
-        assert str(result) == "/home/user/documents" or str(result) == "\\home\\user\\documents"
+        assert (
+            str(result) == "/home/user/documents"
+            or str(result) == "\\home\\user\\documents"
+        )
 
     def test_file_extension(self):
         """测试文件扩展名获取"""
@@ -69,12 +72,15 @@ class TestListOperations:
         assert items[1:3] == [2, 3]
 
 
-@pytest.mark.parametrize("input,expected", [
-    (1, 2),
-    (2, 4),
-    (3, 6),
-    (10, 20),
-])
+@pytest.mark.parametrize(
+    "input,expected",
+    [
+        (1, 2),
+        (2, 4),
+        (3, 6),
+        (10, 20),
+    ],
+)
 def test_multiply_by_two(input, expected):
     """参数化测试示例"""
     assert input * 2 == expected

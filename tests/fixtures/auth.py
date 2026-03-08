@@ -21,22 +21,22 @@ def create_test_user(init_test_database: sqlite3.Connection):
 
     cursor = init_test_database.cursor()
     cursor.execute(
-        '''INSERT INTO users (username, password_hash, email)
-           VALUES (?, ?, ?)''',
-        ('testuser', password_hash, 'test@example.com')
+        """INSERT INTO users (username, password_hash, email)
+           VALUES (?, ?, ?)""",
+        ("testuser", password_hash, "test@example.com"),
     )
     init_test_database.commit()
 
     user_id = cursor.lastrowid
-    cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     row = cursor.fetchone()
 
     return {
-        'id': row[0],
-        'username': row[1],
-        'email': row[3],
-        'is_admin': bool(row[4]),
-        'password': 'test_password'  # 原始密码，仅用于测试
+        "id": row[0],
+        "username": row[1],
+        "email": row[3],
+        "is_admin": bool(row[4]),
+        "password": "test_password",  # 原始密码，仅用于测试
     }
 
 
@@ -52,22 +52,22 @@ def create_test_admin(init_test_database: sqlite3.Connection):
 
     cursor = init_test_database.cursor()
     cursor.execute(
-        '''INSERT INTO users (username, password_hash, email, is_admin)
-           VALUES (?, ?, ?, ?)''',
-        ('testadmin', password_hash, 'admin@example.com', 1)
+        """INSERT INTO users (username, password_hash, email, is_admin)
+           VALUES (?, ?, ?, ?)""",
+        ("testadmin", password_hash, "admin@example.com", 1),
     )
     init_test_database.commit()
 
     user_id = cursor.lastrowid
-    cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     row = cursor.fetchone()
 
     return {
-        'id': row[0],
-        'username': row[1],
-        'email': row[3],
-        'is_admin': bool(row[4]),
-        'password': 'admin_password'  # 原始密码，仅用于测试
+        "id": row[0],
+        "username": row[1],
+        "email": row[3],
+        "is_admin": bool(row[4]),
+        "password": "admin_password",  # 原始密码，仅用于测试
     }
 
 
@@ -92,5 +92,5 @@ def authenticated_headers(get_test_token: str) -> Dict[str, str]:
     """
     return {
         "Authorization": f"Bearer {get_test_token}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }

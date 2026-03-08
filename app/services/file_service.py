@@ -12,13 +12,7 @@ from pathlib import Path
 from typing import List, Optional, Dict
 from datetime import datetime
 
-from app.models.file import (
-    FileInfo,
-    FileRename,
-    FolderCreate,
-    BatchDelete,
-    SearchQuery
-)
+from app.models.file import FileInfo, FileRename, FolderCreate, BatchDelete, SearchQuery
 
 
 logger = logging.getLogger(__name__)
@@ -59,14 +53,16 @@ class FileService:
 
         for item in full_path.iterdir():
             stat = item.stat()
-            items.append(FileInfo(
-                name=item.name,
-                path=str(item.relative_to(self.storage_path)),
-                size=stat.st_size if item.is_file() else None,
-                mime_type=self._get_mime_type(item),
-                is_dir=item.is_dir(),
-                modified=datetime.fromtimestamp(stat.st_mtime).isoformat()
-            ))
+            items.append(
+                FileInfo(
+                    name=item.name,
+                    path=str(item.relative_to(self.storage_path)),
+                    size=stat.st_size if item.is_file() else None,
+                    mime_type=self._get_mime_type(item),
+                    is_dir=item.is_dir(),
+                    modified=datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                )
+            )
 
         # 按名称排序，目录优先
         items.sort(key=lambda x: (not x.is_dir, x.name.lower()))
@@ -99,7 +95,7 @@ class FileService:
             name=folder_data.name,
             path=str(new_folder.relative_to(self.storage_path)),
             is_dir=True,
-            modified=datetime.now().isoformat()
+            modified=datetime.now().isoformat(),
         )
 
     def rename_file(self, rename_data: FileRename) -> bool:
@@ -130,8 +126,8 @@ class FileService:
         # 更新数据库记录
         with self.db.get_cursor() as cursor:
             cursor.execute(
-                '''UPDATE files SET path = ?, name = ? WHERE path = ?''',
-                (str(new_path), rename_data.new_name, str(old_path))
+                """UPDATE files SET path = ?, name = ? WHERE path = ?""",
+                (str(new_path), rename_data.new_name, str(old_path)),
             )
 
         logger.info(f"重命名: {old_path} -> {new_path}")
@@ -155,10 +151,7 @@ class FileService:
 
         # 从数据库删除记录
         with self.db.get_cursor() as cursor:
-            cursor.execute(
-                '''DELETE FROM files WHERE path = ?''',
-                (str(full_path),)
-            )
+            cursor.execute("""DELETE FROM files WHERE path = ?""", (str(full_path),))
 
         # 删除物理文件
         if full_path.is_file():
@@ -194,7 +187,7 @@ class FileService:
         return {
             "success_count": success_count,
             "failed_count": len(failed_items),
-            "failed_items": failed_items
+            "failed_items": failed_items,
         }
 
     def search_files(self, query: SearchQuery) -> List[FileInfo]:
@@ -246,13 +239,15 @@ class FileService:
                     if mtime > end_dt:
                         continue
 
-            results.append(FileInfo(
-                name=item.name,
-                path=str(item.relative_to(self.storage_path)),
-                size=item.stat().st_size if item.is_file() else None,
-                is_dir=item.is_dir(),
-                modified=datetime.fromtimestamp(item.stat().st_mtime).isoformat()
-            ))
+            results.append(
+                FileInfo(
+                    name=item.name,
+                    path=str(item.relative_to(self.storage_path)),
+                    size=item.stat().st_size if item.is_file() else None,
+                    is_dir=item.is_dir(),
+                    modified=datetime.fromtimestamp(item.stat().st_mtime).isoformat(),
+                )
+            )
 
         return results
 
@@ -283,22 +278,28 @@ class FileService:
 
         # 根据扩展名判断
         ext_map = {
-            '.txt': 'text/plain',
-            '.pdf': 'application/pdf',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.png': 'image/png',
-            '.gif': 'image/gif',
-            '.mp3': 'audio/mpeg',
-            '.mp4': 'video/mp4',
-            '.zip': 'application/zip',
-            '.json': 'application/json',
+            ".txt": "text/plain",
+            ".pdf": "application/pdf",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".gif": "image/gif",
+            ".mp3": "audio/mpeg",
+            ".mp4": "video/mp4",
+            ".zip": "application/zip",
+            ".json": "application/json",
         }
 
         return ext_map.get(path.suffix.lower())
 
-    def log_action(self, user_id: int, action: str, resource_type: str,
-                   resource_path: str, details: str = None) -> None:
+    def log_action(
+        self,
+        user_id: int,
+        action: str,
+        resource_type: str,
+        resource_path: str,
+        details: str = None,
+    ) -> None:
         """
         记录操作日志
 
@@ -310,10 +311,13 @@ class FileService:
             details: 详细信息
         """
         with self.db.get_cursor() as cursor:
-            cursor.execute('''
+            cursor.execute(
+                """
                 INSERT INTO logs (user_id, action, resource_type, details)
                 VALUES (?, ?, ?, ?)
-            ''', (user_id, action, resource_type, details or resource_path))
+            """,
+                (user_id, action, resource_type, details or resource_path),
+            )
 
     def get_recent_files(self, user_id: int, limit: int = 20) -> List[Dict]:
         """
@@ -327,20 +331,23 @@ class FileService:
             List[Dict]: 最近文件列表
         """
         with self.db.get_cursor() as cursor:
-            cursor.execute('''
+            cursor.execute(
+                """
                 SELECT action, resource_type, details, created_at
                 FROM logs
                 WHERE user_id = ? AND action IN ('file_view', 'file_upload', 'file_download')
                 ORDER BY created_at DESC
                 LIMIT ?
-            ''', (user_id, limit))
+            """,
+                (user_id, limit),
+            )
             rows = cursor.fetchall()
             return [
                 {
-                    'action': r[0],
-                    'resource_type': r[1],
-                    'details': r[2],
-                    'created_at': r[3]
+                    "action": r[0],
+                    "resource_type": r[1],
+                    "details": r[2],
+                    "created_at": r[3],
                 }
                 for r in rows
             ]

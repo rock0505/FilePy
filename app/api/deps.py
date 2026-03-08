@@ -62,6 +62,7 @@ def get_db() -> Generator[Database, None, None]:
 # 配置依赖
 # =============================================================================
 
+
 async def get_settings_dep() -> Settings:
     """获取应用配置"""
     return get_settings()
@@ -71,9 +72,10 @@ async def get_settings_dep() -> Settings:
 # 认证依赖
 # =============================================================================
 
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ) -> TokenData:
     """
     获取当前登录用户
@@ -111,25 +113,19 @@ async def get_current_user(
 
     # 验证用户是否仍然存在
     with db.get_cursor() as cursor:
-        cursor.execute(
-            '''SELECT id FROM users WHERE id = ?''',
-            (user_id,)
-        )
+        cursor.execute("""SELECT id FROM users WHERE id = ?""", (user_id,))
         user = cursor.fetchone()
 
     if user is None:
         raise credentials_exception
 
     return TokenData(
-        user_id=user_id,
-        username=username,
-        is_admin=is_admin,
-        exp=payload.get("exp")
+        user_id=user_id, username=username, is_admin=is_admin, exp=payload.get("exp")
     )
 
 
 async def get_current_admin(
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user),
 ) -> TokenData:
     """
     获取当前管理员用户
@@ -145,8 +141,7 @@ async def get_current_admin(
     """
     if not current_user.is_admin:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="需要管理员权限"
+            status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限"
         )
 
     return current_user
@@ -156,11 +151,12 @@ async def get_current_admin(
 # 可选认证依赖
 # =============================================================================
 
+
 async def get_optional_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(
         HTTPBearer(auto_error=False)
     ),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ) -> Optional[TokenData]:
     """
     获取当前用户（可选）
@@ -191,18 +187,12 @@ async def get_optional_user(
         return None
 
     with db.get_cursor() as cursor:
-        cursor.execute(
-            '''SELECT id FROM users WHERE id = ?''',
-            (user_id,)
-        )
+        cursor.execute("""SELECT id FROM users WHERE id = ?""", (user_id,))
         user = cursor.fetchone()
 
     if user is None:
         return None
 
     return TokenData(
-        user_id=user_id,
-        username=username,
-        is_admin=is_admin,
-        exp=payload.get("exp")
+        user_id=user_id, username=username, is_admin=is_admin, exp=payload.get("exp")
     )

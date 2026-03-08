@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 class FavoriteCreate(BaseModel):
     """创建收藏请求"""
+
     file_path: str
     file_name: str
     is_dir: bool = False
@@ -16,6 +17,7 @@ class FavoriteCreate(BaseModel):
 
 class FavoriteResponse(BaseModel):
     """收藏响应"""
+
     id: int
     file_path: str
     file_name: str

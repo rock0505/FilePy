@@ -17,9 +17,7 @@ class TestAuthService:
         service = AuthService(test_database)
 
         user_data = UserCreate(
-            username="testuser",
-            password="password123",
-            email="test@example.com"
+            username="testuser", password="password123", email="test@example.com"
         )
 
         user_id = service.create_user(user_data)
@@ -29,49 +27,42 @@ class TestAuthService:
         # 验证用户已创建
         user = service.get_user_by_id(user_id)
         assert user is not None
-        assert user['username'] == "testuser"
+        assert user["username"] == "testuser"
 
     def test_create_admin_user(self, test_database):
         """测试创建管理员用户"""
         service = AuthService(test_database)
 
         user_data = UserCreate(
-            username="admin",
-            password="admin123",
-            email="admin@example.com"
+            username="testadmin", password="admin123", email="testadmin@example.com"
         )
 
         user_id = service.create_user(user_data, is_admin=True)
 
         user = service.get_user_by_id(user_id)
-        assert user['is_admin'] is True
+        assert user["is_admin"] is True
+        assert user["username"] == "testadmin"
 
     def test_authenticate_user_success(self, test_database):
         """测试成功的用户认证"""
         service = AuthService(test_database)
 
         # 先创建用户
-        user_data = UserCreate(
-            username="authuser",
-            password="authpass123"
-        )
+        user_data = UserCreate(username="authuser", password="authpass123")
         service.create_user(user_data)
 
         # 认证
         user = service.authenticate_user("authuser", "authpass123")
 
         assert user is not None
-        assert user['username'] == "authuser"
+        assert user["username"] == "authuser"
 
     def test_authenticate_user_wrong_password(self, test_database):
         """测试错误密码认证"""
         service = AuthService(test_database)
 
         # 先创建用户
-        user_data = UserCreate(
-            username="authuser2",
-            password="correctpass"
-        )
+        user_data = UserCreate(username="authuser2", password="correctpass")
         service.create_user(user_data)
 
         # 使用错误密码认证
@@ -92,10 +83,7 @@ class TestAuthService:
         service = AuthService(test_database)
 
         # 先创建用户
-        user_data = UserCreate(
-            username="loginuser",
-            password="loginpass123"
-        )
+        user_data = UserCreate(username="loginuser", password="loginpass123")
         service.create_user(user_data)
 
         # 登录
@@ -118,10 +106,7 @@ class TestAuthService:
         service = AuthService(test_database)
 
         # 先创建用户
-        user_data = UserCreate(
-            username="pwduser",
-            password="oldpass123"
-        )
+        user_data = UserCreate(username="pwduser", password="oldpass123")
         user_id = service.create_user(user_data)
 
         # 修改密码
@@ -138,10 +123,7 @@ class TestAuthService:
         service = AuthService(test_database)
 
         # 先创建用户
-        user_data = UserCreate(
-            username="pwduser2",
-            password="originalpass"
-        )
+        user_data = UserCreate(username="pwduser2", password="originalpass")
         user_id = service.create_user(user_data)
 
         # 使用错误的旧密码
@@ -154,17 +136,14 @@ class TestAuthService:
         service = AuthService(test_database)
 
         # 先创建用户
-        user_data = UserCreate(
-            username="nameuser",
-            password="password123"
-        )
+        user_data = UserCreate(username="nameuser", password="password123")
         service.create_user(user_data)
 
         # 获取用户
         user = service.get_user_by_username("nameuser")
 
         assert user is not None
-        assert user['username'] == "nameuser"
+        assert user["username"] == "nameuser"
 
     def test_get_user_by_username_not_exists(self, test_database):
         """测试获取不存在的用户"""

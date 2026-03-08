@@ -38,10 +38,7 @@ class Database:
             sqlite3.Connection: 数据库连接
         """
         if self._connection is None:
-            self._connection = sqlite3.connect(
-                self.db_path,
-                check_same_thread=False
-            )
+            self._connection = sqlite3.connect(self.db_path, check_same_thread=False)
             # 启用外键约束
             self._connection.execute("PRAGMA foreign_keys = ON")
             # 使用 Row Factory，可以通过列名访问
@@ -105,7 +102,8 @@ def init_database(db: Database):
     """
     with db.get_cursor() as cursor:
         # 创建用户表
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
@@ -115,20 +113,24 @@ def init_database(db: Database):
                 force_password_change BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        ''')
+        """
+        )
 
         # 创建组表
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS groups (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE NOT NULL,
                 description TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        ''')
+        """
+        )
 
         # 创建用户组关联表
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS user_groups (
                 user_id INTEGER,
                 group_id INTEGER,
@@ -136,19 +138,23 @@ def init_database(db: Database):
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
             )
-        ''')
+        """
+        )
 
         # 创建权限表
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS permissions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE NOT NULL,
                 description TEXT
             )
-        ''')
+        """
+        )
 
         # 创建文件表
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -163,10 +169,12 @@ def init_database(db: Database):
                 FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL,
                 FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
             )
-        ''')
+        """
+        )
 
         # 创建日志表
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
@@ -178,10 +186,12 @@ def init_database(db: Database):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
             )
-        ''')
+        """
+        )
 
         # 创建配额表
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS quotas (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
@@ -191,20 +201,24 @@ def init_database(db: Database):
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
-        ''')
+        """
+        )
 
         # 创建配置表
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS config (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 key TEXT UNIQUE NOT NULL,
                 value TEXT NOT NULL,
                 description TEXT
             )
-        ''')
+        """
+        )
 
         # 创建收藏表
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS favorites (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -216,16 +230,20 @@ def init_database(db: Database):
                 UNIQUE(user_id, file_path),
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
-        ''')
+        """
+        )
 
         # 创建收藏表索引
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_favorites_user
             ON favorites(user_id, created_at DESC)
-        ''')
+        """
+        )
 
         # 创建用户设置表
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS user_settings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL UNIQUE,
@@ -238,7 +256,8 @@ def init_database(db: Database):
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
-        ''')
+        """
+        )
 
         logger.info("数据库表结构初始化完成")
 
@@ -253,34 +272,38 @@ def _insert_default_data(db: Database):
     with db.get_cursor() as cursor:
         # 默认权限
         default_permissions = [
-            ('read', '读取权限'),
-            ('write', '写入权限'),
-            ('execute', '执行权限'),
-            ('delete', '删除权限')
+            ("read", "读取权限"),
+            ("write", "写入权限"),
+            ("execute", "执行权限"),
+            ("delete", "删除权限"),
         ]
         for perm_name, perm_desc in default_permissions:
             cursor.execute(
-                'INSERT OR IGNORE INTO permissions (name, description) VALUES (?, ?)',
-                (perm_name, perm_desc)
+                "INSERT OR IGNORE INTO permissions (name, description) VALUES (?, ?)",
+                (perm_name, perm_desc),
             )
 
         # 创建默认管理员用户 (用户名: admin, 密码: admin123)
         # 只在用户不存在时创建，不做后续检测
-        password_hash = hash_password('admin123')
+        password_hash = hash_password("admin123")
         cursor.execute(
-            'INSERT OR IGNORE INTO users (username, password_hash, is_admin, force_password_change) VALUES (?, ?, ?, ?)',
-            ('admin', password_hash, True, False)
+            "INSERT OR IGNORE INTO users (username, password_hash, is_admin, force_password_change) VALUES (?, ?, ?, ?)",
+            ("admin", password_hash, True, False),
         )
 
         # 默认配置
         default_configs = [
-            ('max_upload_size', str(settings.MAX_UPLOAD_SIZE), '最大上传文件大小(字节)'),
-            ('allow_registration', 'false', '是否允许用户注册'),
+            (
+                "max_upload_size",
+                str(settings.MAX_UPLOAD_SIZE),
+                "最大上传文件大小(字节)",
+            ),
+            ("allow_registration", "false", "是否允许用户注册"),
         ]
         for config_key, config_value, config_desc in default_configs:
             cursor.execute(
-                'INSERT OR IGNORE INTO config (key, value, description) VALUES (?, ?, ?)',
-                (config_key, config_value, config_desc)
+                "INSERT OR IGNORE INTO config (key, value, description) VALUES (?, ?, ?)",
+                (config_key, config_value, config_desc),
             )
 
         logger.info("默认数据插入完成")

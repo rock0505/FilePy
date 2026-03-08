@@ -59,7 +59,8 @@ def _create_tables(conn: sqlite3.Connection):
     cursor = conn.cursor()
 
     # 用户表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -69,20 +70,24 @@ def _create_tables(conn: sqlite3.Connection):
             force_password_change BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """
+    )
 
     # 组表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS groups (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             description TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """
+    )
 
     # 用户组关联表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS user_groups (
             user_id INTEGER,
             group_id INTEGER,
@@ -90,19 +95,23 @@ def _create_tables(conn: sqlite3.Connection):
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
         )
-    ''')
+    """
+    )
 
     # 权限表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS permissions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             description TEXT
         )
-    ''')
+    """
+    )
 
     # 文件表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -117,10 +126,12 @@ def _create_tables(conn: sqlite3.Connection):
             FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL,
             FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
         )
-    ''')
+    """
+    )
 
     # 日志表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -132,10 +143,12 @@ def _create_tables(conn: sqlite3.Connection):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
         )
-    ''')
+    """
+    )
 
     # 配额表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS quotas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -145,17 +158,20 @@ def _create_tables(conn: sqlite3.Connection):
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
-    ''')
+    """
+    )
 
     # 配置表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS config (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             key TEXT UNIQUE NOT NULL,
             value TEXT NOT NULL,
             description TEXT
         )
-    ''')
+    """
+    )
 
     conn.commit()
 
@@ -166,26 +182,26 @@ def _insert_default_data(conn: sqlite3.Connection):
 
     # 默认权限
     permissions = [
-        ('read', '读取权限'),
-        ('write', '写入权限'),
-        ('execute', '执行权限'),
-        ('delete', '删除权限')
+        ("read", "读取权限"),
+        ("write", "写入权限"),
+        ("execute", "执行权限"),
+        ("delete", "删除权限"),
     ]
     for name, desc in permissions:
         cursor.execute(
-            'INSERT OR IGNORE INTO permissions (name, description) VALUES (?, ?)',
-            (name, desc)
+            "INSERT OR IGNORE INTO permissions (name, description) VALUES (?, ?)",
+            (name, desc),
         )
 
     # 默认配置
     configs = [
-        ('max_upload_size', '104857600', '最大上传文件大小(字节)'),
-        ('allow_registration', 'false', '是否允许用户注册'),
+        ("max_upload_size", "104857600", "最大上传文件大小(字节)"),
+        ("allow_registration", "false", "是否允许用户注册"),
     ]
     for key, value, desc in configs:
         cursor.execute(
-            'INSERT OR IGNORE INTO config (key, value, description) VALUES (?, ?, ?)',
-            (key, value, desc)
+            "INSERT OR IGNORE INTO config (key, value, description) VALUES (?, ?, ?)",
+            (key, value, desc),
         )
 
     conn.commit()

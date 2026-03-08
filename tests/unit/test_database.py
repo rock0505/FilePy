@@ -101,14 +101,18 @@ class TestDatabaseInit:
 
         # 验证表是否创建
         with db.get_cursor() as cursor:
-            cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = [row[0] for row in cursor.fetchall()]
 
             expected_tables = [
-                'users', 'groups', 'user_groups', 'permissions',
-                'files', 'logs', 'quotas', 'config'
+                "users",
+                "groups",
+                "user_groups",
+                "permissions",
+                "files",
+                "logs",
+                "quotas",
+                "config",
             ]
 
             for table in expected_tables:
@@ -126,11 +130,11 @@ class TestDatabaseInit:
             permissions = cursor.fetchall()
 
             assert len(permissions) >= 4
-            perm_names = [p['name'] for p in permissions]
-            assert 'read' in perm_names
-            assert 'write' in perm_names
-            assert 'execute' in perm_names
-            assert 'delete' in perm_names
+            perm_names = [p["name"] for p in permissions]
+            assert "read" in perm_names
+            assert "write" in perm_names
+            assert "execute" in perm_names
+            assert "delete" in perm_names
 
     def test_init_database_default_config(self, temp_dir: Path):
         """测试默认配置插入"""

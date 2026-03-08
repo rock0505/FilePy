@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 class TokenData(BaseModel):
     """Token 数据模型"""
+
     user_id: int
     username: str
     is_admin: bool = False
@@ -17,6 +18,7 @@ class TokenData(BaseModel):
 
 class TokenResponse(BaseModel):
     """Token 响应模型"""
+
     access_token: str
     token_type: str = "bearer"
     force_password_change: bool = False

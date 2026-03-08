@@ -13,7 +13,7 @@ from app.core.security import (
     hash_password,
     verify_password,
     create_access_token,
-    decode_access_token
+    decode_access_token,
 )
 from app.models.user import UserCreate
 from app.models.auth import TokenData, TokenResponse
@@ -57,9 +57,9 @@ class AuthService:
 
         with self.db.get_cursor() as cursor:
             cursor.execute(
-                '''INSERT INTO users (username, password_hash, email, is_admin)
-                   VALUES (?, ?, ?, ?)''',
-                (user_data.username, password_hash, user_data.email, is_admin)
+                """INSERT INTO users (username, password_hash, email, is_admin)
+                   VALUES (?, ?, ?, ?)""",
+                (user_data.username, password_hash, user_data.email, is_admin),
             )
             user_id = cursor.lastrowid
 
@@ -79,9 +79,9 @@ class AuthService:
         """
         with self.db.get_cursor() as cursor:
             cursor.execute(
-                '''SELECT id, username, password_hash, email, is_admin, force_password_change
-                   FROM users WHERE username = ?''',
-                (username,)
+                """SELECT id, username, password_hash, email, is_admin, force_password_change
+                   FROM users WHERE username = ?""",
+                (username,),
             )
             user = cursor.fetchone()
 
@@ -90,16 +90,16 @@ class AuthService:
 
         # 转换为字典
         user_dict = {
-            'id': user[0],
-            'username': user[1],
-            'password_hash': user[2],
-            'email': user[3],
-            'is_admin': bool(user[4]),
-            'force_password_change': bool(user[5])
+            "id": user[0],
+            "username": user[1],
+            "password_hash": user[2],
+            "email": user[3],
+            "is_admin": bool(user[4]),
+            "force_password_change": bool(user[5]),
         }
 
         # 验证密码
-        if not self.verify_password(password, user_dict['password_hash']):
+        if not self.verify_password(password, user_dict["password_hash"]):
             return None
 
         return user_dict
@@ -122,9 +122,9 @@ class AuthService:
 
         # 创建 Token
         token_data = {
-            'user_id': user['id'],
-            'username': user['username'],
-            'is_admin': user['is_admin']
+            "user_id": user["id"],
+            "username": user["username"],
+            "is_admin": user["is_admin"],
         }
 
         access_token = create_access_token(token_data)
@@ -132,7 +132,7 @@ class AuthService:
         return TokenResponse(
             access_token=access_token,
             token_type="bearer",
-            force_password_change=user['force_password_change']
+            force_password_change=user["force_password_change"],
         )
 
     def get_user_by_id(self, user_id: int) -> Optional[Dict]:
@@ -147,9 +147,9 @@ class AuthService:
         """
         with self.db.get_cursor() as cursor:
             cursor.execute(
-                '''SELECT id, username, email, is_admin, force_password_change, created_at
-                   FROM users WHERE id = ?''',
-                (user_id,)
+                """SELECT id, username, email, is_admin, force_password_change, created_at
+                   FROM users WHERE id = ?""",
+                (user_id,),
             )
             user = cursor.fetchone()
 
@@ -157,12 +157,12 @@ class AuthService:
             return None
 
         return {
-            'id': user[0],
-            'username': user[1],
-            'email': user[2],
-            'is_admin': bool(user[3]),
-            'force_password_change': bool(user[4]),
-            'created_at': user[5]
+            "id": user[0],
+            "username": user[1],
+            "email": user[2],
+            "is_admin": bool(user[3]),
+            "force_password_change": bool(user[4]),
+            "created_at": user[5],
         }
 
     def get_user_by_username(self, username: str) -> Optional[Dict]:
@@ -177,9 +177,9 @@ class AuthService:
         """
         with self.db.get_cursor() as cursor:
             cursor.execute(
-                '''SELECT id, username, email, is_admin, force_password_change, created_at
-                   FROM users WHERE username = ?''',
-                (username,)
+                """SELECT id, username, email, is_admin, force_password_change, created_at
+                   FROM users WHERE username = ?""",
+                (username,),
             )
             user = cursor.fetchone()
 
@@ -187,19 +187,16 @@ class AuthService:
             return None
 
         return {
-            'id': user[0],
-            'username': user[1],
-            'email': user[2],
-            'is_admin': bool(user[3]),
-            'force_password_change': bool(user[4]),
-            'created_at': user[5]
+            "id": user[0],
+            "username": user[1],
+            "email": user[2],
+            "is_admin": bool(user[3]),
+            "force_password_change": bool(user[4]),
+            "created_at": user[5],
         }
 
     def change_password(
-        self,
-        user_id: int,
-        old_password: str,
-        new_password: str
+        self, user_id: int, old_password: str, new_password: str
     ) -> bool:
         """
         修改密码
@@ -215,8 +212,7 @@ class AuthService:
         # 获取用户当前密码
         with self.db.get_cursor() as cursor:
             cursor.execute(
-                '''SELECT password_hash FROM users WHERE id = ?''',
-                (user_id,)
+                """SELECT password_hash FROM users WHERE id = ?""", (user_id,)
             )
             result = cursor.fetchone()
 
@@ -234,9 +230,9 @@ class AuthService:
 
         with self.db.get_cursor() as cursor:
             cursor.execute(
-                '''UPDATE users SET password_hash = ?, force_password_change = 0
-                   WHERE id = ?''',
-                (new_hash, user_id)
+                """UPDATE users SET password_hash = ?, force_password_change = 0
+                   WHERE id = ?""",
+                (new_hash, user_id),
             )
 
         logger.info(f"用户 {user_id} 修改密码成功")

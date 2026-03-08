@@ -66,18 +66,18 @@ class UserService:
         """
         with self.db.get_cursor() as cursor:
             cursor.execute(
-                '''SELECT id, username, email, is_admin, created_at
-                   FROM users ORDER BY username'''
+                """SELECT id, username, email, is_admin, created_at
+                   FROM users ORDER BY username"""
             )
             users = cursor.fetchall()
 
         return [
             {
-                'id': user[0],
-                'username': user[1],
-                'email': user[2],
-                'is_admin': bool(user[3]),
-                'created_at': user[4]
+                "id": user[0],
+                "username": user[1],
+                "email": user[2],
+                "is_admin": bool(user[3]),
+                "created_at": user[4],
             }
             for user in users
         ]
@@ -105,10 +105,7 @@ class UserService:
         values = [v for _, v in updates] + [user_id]
 
         with self.db.get_cursor() as cursor:
-            cursor.execute(
-                f'''UPDATE users SET {set_clause} WHERE id = ?''',
-                values
-            )
+            cursor.execute(f"""UPDATE users SET {set_clause} WHERE id = ?""", values)
 
         logger.info(f"更新用户 {user_id}")
         return True
@@ -124,7 +121,7 @@ class UserService:
             bool: 是否删除成功
         """
         with self.db.get_cursor() as cursor:
-            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+            cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
         logger.info(f"删除用户 {user_id}")
         return True

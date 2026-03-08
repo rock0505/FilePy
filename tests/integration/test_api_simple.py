@@ -10,6 +10,7 @@ import pytest
 def test_app_imports():
     """测试应用可以正常导入"""
     from app.main import app
+
     assert app is not None
 
 
@@ -17,6 +18,7 @@ def test_app_imports():
 def test_config_loaded():
     """测试配置已加载"""
     from app.core.config import settings
+
     assert settings.PROJECT_NAME == "FilePy"
     assert settings.VERSION == "0.3.0"
 
@@ -25,6 +27,7 @@ def test_config_loaded():
 def test_database_module():
     """测试数据库模块"""
     from app.core.database import Database
+
     db = Database(":memory:")
     assert db is not None
     db.close()
@@ -34,6 +37,7 @@ def test_database_module():
 def test_security_module():
     """测试安全模块"""
     from app.core.security import hash_password, verify_password
+
     pwd = "test_password"
     hashed = hash_password(pwd)
     assert verify_password(pwd, hashed) is True

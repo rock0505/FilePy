@@ -14,9 +14,7 @@ class TestSettings:
 
     def test_default_values(self):
         """测试默认配置值"""
-        settings = Settings(
-            FILEPY_SECRET_KEY="test-secret-key"
-        )
+        settings = Settings(FILEPY_SECRET_KEY="test-secret-key")
 
         assert settings.PROJECT_NAME == "FilePy"
         assert settings.VERSION == "0.3.0"
@@ -40,6 +38,7 @@ class TestSettings:
         # 重新导入 Settings 以获取新的环境变量
         from importlib import reload
         import app.core.config as config_module
+
         reload(config_module)
         from app.core.config import Settings
 
@@ -49,27 +48,30 @@ class TestSettings:
 
     def test_cors_origins_parsing(self, monkeypatch):
         """测试 CORS 配置解析"""
-        monkeypatch.setenv("FILEPY_CORS_ORIGINS", "http://localhost:3000,https://example.com")
+        monkeypatch.setenv(
+            "FILEPY_CORS_ORIGINS", "http://localhost:3000,https://example.com"
+        )
         monkeypatch.setenv("FILEPY_SECRET_KEY", "test-key")
 
         # 重新导入
         from importlib import reload
         import app.core.config as config_module
+
         reload(config_module)
         from app.core.config import Settings
 
         settings = Settings(FILEPY_SECRET_KEY="test-key")
 
         # CORS_ORIGINS 解析需要列表
-        assert settings.CORS_ORIGINS == ["http://localhost:1966", "http://127.0.0.1:1966"]
+        assert settings.CORS_ORIGINS == [
+            "http://localhost:1966",
+            "http://127.0.0.1:1966",
+        ]
 
     def test_testing_mode(self):
         """测试测试模式设置"""
         # Pydantic 1.x 可能需要用不同的方式处理布尔值
-        settings = Settings(
-            FILEPY_SECRET_KEY="test-key",
-            FILEPY_TESTING="true"
-        )
+        settings = Settings(FILEPY_SECRET_KEY="test-key", FILEPY_TESTING="true")
         # 由于 Pydantic 1.x 的类型转换问题，这里只测试创建不报错
         assert settings is not None
 
@@ -89,6 +91,7 @@ class TestConfigLoading:
 
         # 清除缓存以确保重新创建
         from app.core.config import get_settings
+
         get_settings.cache_clear()
 
         settings1 = get_settings()

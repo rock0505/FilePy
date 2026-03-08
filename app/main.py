@@ -16,8 +16,7 @@ from app.core.config import settings
 
 # 配置日志
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -62,6 +61,7 @@ app.include_router(settings_api.router)
 # 请求日志中间件
 # =============================================================================
 
+
 @app.middleware("http")
 async def log_requests(request, call_next):
     """记录请求"""
@@ -83,6 +83,7 @@ app.mount("/storage", StaticFiles(directory=str(storage_path)), name="storage")
 # 根路径和健康检查
 # =============================================================================
 
+
 @app.get("/")
 async def root():
     """根路径 - 返回 Web 界面"""
@@ -92,7 +93,7 @@ async def root():
     return {
         "name": settings.PROJECT_NAME,
         "version": settings.VERSION,
-        "description": settings.DESCRIPTION
+        "description": settings.DESCRIPTION,
     }
 
 
@@ -108,7 +109,7 @@ async def api_info():
     return {
         "name": settings.PROJECT_NAME,
         "version": settings.VERSION,
-        "description": settings.DESCRIPTION
+        "description": settings.DESCRIPTION,
     }
 
 
@@ -122,6 +123,7 @@ async def health_check():
 # 前端页面
 # =============================================================================
 
+
 @app.get("/web")
 async def web_interface():
     """返回 Web 界面"""
@@ -134,6 +136,7 @@ async def web_interface():
 # =============================================================================
 # 启动事件
 # =============================================================================
+
 
 @app.on_event("startup")
 async def startup_event():

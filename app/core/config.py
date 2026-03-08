@@ -31,7 +31,9 @@ class Settings(BaseModel):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     # 数据库配置
-    DATABASE_URL: str = Field(default="sqlite:///./filepy.db", alias="FILEPY_DATABASE_URL")
+    DATABASE_URL: str = Field(
+        default="sqlite:///./filepy.db", alias="FILEPY_DATABASE_URL"
+    )
 
     # 测试模式
     TESTING: bool = Field(default=False, alias="FILEPY_TESTING")
@@ -42,7 +44,7 @@ class Settings(BaseModel):
     # CORS 配置
     CORS_ORIGINS: List[str] = Field(
         default=["http://localhost:1966", "http://127.0.0.1:1966"],
-        alias="FILEPY_CORS_ORIGINS"
+        alias="FILEPY_CORS_ORIGINS",
     )
 
     # SSL/TLS 配置

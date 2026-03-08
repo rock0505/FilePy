@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # 测试配置
 # =============================================================================
 
+
 @pytest.fixture(scope="session")
 def test_config():
     """测试配置"""
@@ -35,6 +36,7 @@ def test_config():
 # =============================================================================
 # 临时目录 fixtures
 # =============================================================================
+
 
 @pytest.fixture(scope="function")
 def temp_dir() -> Generator[Path, None, None]:
@@ -71,6 +73,7 @@ def temp_file(temp_dir: Path) -> Path:
 # 数据库 fixtures
 # =============================================================================
 
+
 @pytest.fixture(scope="function")
 def test_db():
     """
@@ -83,7 +86,8 @@ def test_db():
     cursor = conn.cursor()
 
     # 创建用户表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -93,20 +97,24 @@ def test_db():
             force_password_change BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """
+    )
 
     # 创建组表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS groups (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             description TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    ''')
+    """
+    )
 
     # 创建用户组关联表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS user_groups (
             user_id INTEGER,
             group_id INTEGER,
@@ -114,19 +122,23 @@ def test_db():
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
         )
-    ''')
+    """
+    )
 
     # 创建权限表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS permissions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             description TEXT
         )
-    ''')
+    """
+    )
 
     # 创建文件表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -141,10 +153,12 @@ def test_db():
             FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL,
             FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
         )
-    ''')
+    """
+    )
 
     # 创建日志表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -156,10 +170,12 @@ def test_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
         )
-    ''')
+    """
+    )
 
     # 创建配额表
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS quotas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -169,31 +185,32 @@ def test_db():
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
-    ''')
+    """
+    )
 
     # 插入测试数据
     # 默认权限
     default_permissions = [
-        ('read', '读取权限'),
-        ('write', '写入权限'),
-        ('execute', '执行权限'),
-        ('delete', '删除权限')
+        ("read", "读取权限"),
+        ("write", "写入权限"),
+        ("execute", "执行权限"),
+        ("delete", "删除权限"),
     ]
     for perm_name, perm_desc in default_permissions:
         cursor.execute(
-            'INSERT OR IGNORE INTO permissions (name, description) VALUES (?, ?)',
-            (perm_name, perm_desc)
+            "INSERT OR IGNORE INTO permissions (name, description) VALUES (?, ?)",
+            (perm_name, perm_desc),
         )
 
     # 测试用户
     test_users = [
-        ('test_admin', 'admin_hash', True, True),
-        ('test_user', 'user_hash', False, False),
+        ("test_admin", "admin_hash", True, True),
+        ("test_user", "user_hash", False, False),
     ]
     for username, pwd_hash, is_admin, force_pwd in test_users:
         cursor.execute(
-            'INSERT OR IGNORE INTO users (username, password_hash, is_admin, force_password_change) VALUES (?, ?, ?, ?)',
-            (username, pwd_hash, is_admin, force_pwd)
+            "INSERT OR IGNORE INTO users (username, password_hash, is_admin, force_password_change) VALUES (?, ?, ?, ?)",
+            (username, pwd_hash, is_admin, force_pwd),
         )
 
     conn.commit()
@@ -208,23 +225,24 @@ def test_db():
 # 认证 fixtures
 # =============================================================================
 
+
 @pytest.fixture(scope="function")
 def test_user(test_db):
     """创建测试用户"""
     cursor = test_db.cursor()
     cursor.execute(
-        'INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)',
-        ('testuser', 'hashed_password', 'test@example.com')
+        "INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)",
+        ("testuser", "hashed_password", "test@example.com"),
     )
     test_db.commit()
     user_id = cursor.lastrowid
-    cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     user = cursor.fetchone()
     return {
-        'id': user[0],
-        'username': user[1],
-        'email': user[3],
-        'is_admin': bool(user[4])
+        "id": user[0],
+        "username": user[1],
+        "email": user[3],
+        "is_admin": bool(user[4]),
     }
 
 
@@ -233,18 +251,18 @@ def test_admin(test_db):
     """创建测试管理员"""
     cursor = test_db.cursor()
     cursor.execute(
-        'INSERT INTO users (username, password_hash, email, is_admin) VALUES (?, ?, ?, ?)',
-        ('testadmin', 'hashed_password', 'admin@example.com', 1)
+        "INSERT INTO users (username, password_hash, email, is_admin) VALUES (?, ?, ?, ?)",
+        ("testadmin", "hashed_password", "admin@example.com", 1),
     )
     test_db.commit()
     user_id = cursor.lastrowid
-    cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     user = cursor.fetchone()
     return {
-        'id': user[0],
-        'username': user[1],
-        'email': user[3],
-        'is_admin': bool(user[4])
+        "id": user[0],
+        "username": user[1],
+        "email": user[3],
+        "is_admin": bool(user[4]),
     }
 
 
@@ -257,6 +275,7 @@ def auth_headers():
 # =============================================================================
 # 文件存储 fixtures
 # =============================================================================
+
 
 @pytest.fixture(scope="function")
 def test_storage_dir(temp_dir: Path) -> Path:
@@ -286,17 +305,17 @@ def sample_files(test_storage_dir: Path) -> dict:
     # 创建文本文件
     txt_file = test_storage_dir / "test.txt"
     txt_file.write_text("这是测试文本文件\nTest Text File")
-    files['txt'] = txt_file
+    files["txt"] = txt_file
 
     # 创建目录
     test_dir = test_storage_dir / "test_folder"
     test_dir.mkdir()
-    files['dir'] = test_dir
+    files["dir"] = test_dir
 
     # 创建 JSON 文件
     json_file = test_storage_dir / "test.json"
     json_file.write_text('{"key": "value", "number": 123}')
-    files['json'] = json_file
+    files["json"] = json_file
 
     return files
 
@@ -304,6 +323,7 @@ def sample_files(test_storage_dir: Path) -> dict:
 # =============================================================================
 # FastAPI 测试客户端 fixtures (用于集成测试)
 # =============================================================================
+
 
 @pytest.fixture(scope="function")
 async def async_client():
@@ -314,17 +334,19 @@ async def async_client():
     """
     import httpx
     from app.main import app
+    from httpx import ASGITransport
 
-    async with httpx.AsyncClient(
-        app=app,
-        base_url="http://test"
-    ) as client:
+    # 使用 ASGITransport 包装 FastAPI 应用
+    transport = ASGITransport(app=app)
+
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
 
 # =============================================================================
 # 环境变量 fixtures
 # =============================================================================
+
 
 @pytest.fixture(scope="function", autouse=True)
 def set_test_env():
@@ -354,6 +376,7 @@ def set_test_env():
 # =============================================================================
 # Database 对象 fixture (用于服务测试)
 # =============================================================================
+
 
 @pytest.fixture(scope="function")
 def test_database():

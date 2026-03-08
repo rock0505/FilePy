@@ -16,10 +16,7 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(
-    user_data: UserLogin,
-    db: Database = Depends(get_db)
-):
+async def login(user_data: UserLogin, db: Database = Depends(get_db)):
     """
     用户登录
 
@@ -43,11 +40,10 @@ async def login(
     return response
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(
-    user_data: UserCreate,
-    db: Database = Depends(get_db)
-):
+@router.post(
+    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
+async def register(user_data: UserCreate, db: Database = Depends(get_db)):
     """
     用户注册（仅管理员可用）
 
@@ -65,27 +61,25 @@ async def register(
     except Exception as e:
         if "UNIQUE constraint" in str(e):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="用户名已存在"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="用户名已存在"
             )
         raise
 
     user = service.get_user_by_id(user_id)
 
     return UserResponse(
-        id=user['id'],
-        username=user['username'],
-        email=user.get('email'),
-        is_admin=user['is_admin'],
+        id=user["id"],
+        username=user["username"],
+        email=user.get("email"),
+        is_admin=user["is_admin"],
         force_password_change=False,
-        created_at=user.get('created_at')
+        created_at=user.get("created_at"),
     )
 
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    current_user: TokenData = Depends(get_current_user), db: Database = Depends(get_db)
 ):
     """
     获取当前用户信息
@@ -101,18 +95,15 @@ async def get_current_user_info(
     user = service.get_user_by_id(current_user.user_id)
 
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
 
     return UserResponse(
-        id=user['id'],
-        username=user['username'],
-        email=user.get('email'),
-        is_admin=user['is_admin'],
-        force_password_change=user.get('force_password_change', False),
-        created_at=user.get('created_at')
+        id=user["id"],
+        username=user["username"],
+        email=user.get("email"),
+        is_admin=user["is_admin"],
+        force_password_change=user.get("force_password_change", False),
+        created_at=user.get("created_at"),
     )
 
 
@@ -120,7 +111,7 @@ async def get_current_user_info(
 async def change_password(
     password_data: PasswordChange,
     current_user: TokenData = Depends(get_current_user),
-    db: Database = Depends(get_db)
+    db: Database = Depends(get_db),
 ):
     """
     修改当前用户密码
@@ -136,15 +127,12 @@ async def change_password(
     service = AuthService(db)
 
     success = service.change_password(
-        current_user.user_id,
-        password_data.old_password,
-        password_data.new_password
+        current_user.user_id, password_data.old_password, password_data.new_password
     )
 
     if not success:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="原密码错误"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="原密码错误"
         )
 
     return {"message": "密码修改成功"}

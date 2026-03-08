@@ -10,9 +10,9 @@ from .auth import *
 from .temp_dir import *
 
 __all__ = [
-    'init_test_database',
-    'create_test_user',
-    'create_test_admin',
-    'get_test_token',
-    'authenticated_headers',
+    "init_test_database",
+    "create_test_user",
+    "create_test_admin",
+    "get_test_token",
+    "authenticated_headers",
 ]
